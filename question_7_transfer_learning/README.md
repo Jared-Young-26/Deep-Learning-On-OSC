@@ -196,9 +196,7 @@ The assignment-grade run writes here by default:
 
 These are the files you should use to demonstrate the assignment result.
 
-## What To Show In A Presentation
-
-The cleanest demonstration bundle is:
+## Pipeline Walkthrough
 
 1. `doctor` output showing the environment and `resolved_model_device: cuda`
 2. source-only `log.txt` and `model_final.pth`

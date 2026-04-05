@@ -96,7 +96,7 @@ Example:
 - On macOS, use `download_models_fasterrcnn.sh` instead of the upstream `download_models.sh` because the upstream script assumes `wget`
 - If your OSC environment requires modules, load Python first
 
-## How To Explain This Question
+## Pipeline Walkthrough
 
 The clean walkthrough story is:
 
@@ -106,5 +106,4 @@ The clean walkthrough story is:
 4. the model runs on one image or a batch
 5. the wrapper saves the final annotated image into `outputs/`
 
-For a professor demo, the easiest artifact to show is the saved image in
-`outputs/` together with the wrapper command you used to produce it.
+

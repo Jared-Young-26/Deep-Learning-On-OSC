@@ -1,0 +1,98 @@
+{
+  "profile": "smoke",
+  "dataset_root": "question_7_transfer_learning/datasets_smoke",
+  "environment": {
+    "platform": "macOS",
+    "machine": "arm64",
+    "python": "3.11.14",
+    "torch": "2.11.0",
+    "torchvision": "0.26.0",
+    "detectron2": "0.6",
+    "timm": "1.0.26",
+    "note": "Apple Silicon macOS can be slow for this Detectron2 pipeline. Use smoke profile locally; prefer OSC/Linux for full runs."
+  },
+  "stages": [
+    {
+      "stage": "source-only",
+      "output_dir": "question_7_transfer_learning/logs/source_only_smoke/faster_rcnn_R_101_C4/voc2clipart",
+      "log_exists": true,
+      "model_final_exists": true,
+      "checkpoint_count": 2,
+      "metrics": {
+        "AP": 0.0,
+        "AP50": 0.0,
+        "AP75": 0.0,
+        "aeroplane": 0.0,
+        "bicycle": 0.0,
+        "bird": 0.0,
+        "boat": 0.0,
+        "bottle": 0.0,
+        "bus": 0.0,
+        "car": 0.0,
+        "cat": 0.0,
+        "chair": 0.0,
+        "cow": 0.0,
+        "diningtable": 0.0,
+        "dog": 0.0,
+        "horse": 0.0,
+        "motorbike": 0.0,
+        "person": 0.0,
+        "pottedplant": 0.0,
+        "sheep": 0.0,
+        "sofa": 0.0,
+        "train": 0.0,
+        "tvmonitor": 0.0
+      },
+      "visualization_dir": "question_7_transfer_learning/visualizations/voc2clipart_smoke/source-only",
+      "visualization_count": 4
+    },
+    {
+      "stage": "phase1",
+      "output_dir": "question_7_transfer_learning/logs/d_adapt_smoke/faster_rcnn_R_101_C4/voc2clipart/phase1",
+      "log_exists": true,
+      "model_final_exists": true,
+      "checkpoint_count": 2,
+      "metrics": {
+        "AP": 0.0,
+        "AP50": 0.0,
+        "AP75": 0.0,
+        "aeroplane": 0.0,
+        "bicycle": 0.0,
+        "bird": 0.0,
+        "boat": 0.0,
+        "bottle": 0.0,
+        "bus": 0.0,
+        "car": 0.0,
+        "cat": 0.0,
+        "chair": 0.0,
+        "cow": 0.0,
+        "diningtable": 0.0,
+        "dog": 0.0,
+        "horse": 0.0,
+        "motorbike": 0.0,
+        "person": 0.0,
+        "pottedplant": 0.0,
+        "sheep": 0.0,
+        "sofa": 0.0,
+        "train": 0.0,
+        "tvmonitor": 0.0
+      },
+      "adaptor_status": {
+        "category": {
+          "status": "trained",
+          "source_batches": 2,
+          "target_batches": 1,
+          "validation_batches": 1
+        },
+        "bbox": {
+          "status": "skipped_empty_loader",
+          "source_batches": 2,
+          "target_batches": 0,
+          "validation_batches": 0
+        }
+      },
+      "visualization_dir": "question_7_transfer_learning/visualizations/voc2clipart_smoke/phase1",
+      "visualization_count": 4
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+Put local satellite demo images in this folder when running Question 5.
+
+The published repo keeps only a small curated sample set so the repository
+stays lightweight. Larger local image collections should remain untracked.

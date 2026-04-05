@@ -16,7 +16,6 @@ question_4_yolo11_yolov12/runs/
 # Q5 keeps only a small curated input set plus the placeholder note.
 question_5_semantic_segmentation/datasets/
 question_5_semantic_segmentation/models/
-question_5_semantic_segmentation/outputs/
 question_5_semantic_segmentation/question_5_semantic_segmentation/
 question_5_semantic_segmentation/inputs/satellite_images/*
 !question_5_semantic_segmentation/inputs/satellite_images/PUT_SATELLITE_IMAGES_HERE.txt

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Dict, List
@@ -18,6 +19,7 @@ from convolution_filter_library import (
 )
 
 QUESTION_DIR = Path(__file__).resolve().parent
+REPO_ROOT = QUESTION_DIR.parent
 DEFAULT_INPUT_DIR = QUESTION_DIR / "inputs"
 DEFAULT_OUTPUT_DIR = QUESTION_DIR / "outputs"
 SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp"}
@@ -206,6 +208,12 @@ def format_cli_path(path: Path) -> str:
         return str(path)
 
 
+def portable_repo_path(path: Path) -> str:
+    # Store repo-relative paths in summaries so tracked artifacts stay portable
+    # and do not leak the local username or home-directory layout.
+    return os.path.relpath(path.resolve(), start=REPO_ROOT)
+
+
 def process_image(source_path: Path, output_dir: Path, output_stem: str) -> Dict[str, object]:
     original_rgb = load_rgb_image(source_path)
     preprocessed_bw = preprocess_image(original_rgb)
@@ -234,7 +242,7 @@ def process_image(source_path: Path, output_dir: Path, output_stem: str) -> Dict
         feature_map_image = uint8_matrix_to_image(display_matrix)
         feature_map_path = output_dir / f"{output_stem}_{name}.png"
         feature_map_image.save(feature_map_path)
-        feature_map_paths[name] = str(feature_map_path.resolve())
+        feature_map_paths[name] = portable_repo_path(feature_map_path)
         tile_images[name] = feature_map_image
 
     feature_map_grid_path = output_dir / f"{output_stem}_feature_maps_grid.png"
@@ -247,8 +255,8 @@ def process_image(source_path: Path, output_dir: Path, output_stem: str) -> Dict
     # and per-filter statistics in one machine-readable report.
     summary_path = output_dir / f"{output_stem}_summary.json"
     summary = {
-        "source_image": str(source_path.resolve()),
-        "output_directory": str(output_dir.resolve()),
+        "source_image": portable_repo_path(source_path),
+        "output_directory": portable_repo_path(output_dir),
         "output_stem": output_stem,
         "image_size": {
             "width": original_rgb.width,
@@ -260,9 +268,9 @@ def process_image(source_path: Path, output_dir: Path, output_stem: str) -> Dict
             "binary_values": [0, 255],
         },
         "artifacts": {
-            "preprocessed_bw": str(preprocessed_path.resolve()),
+            "preprocessed_bw": portable_repo_path(preprocessed_path),
             "feature_maps": feature_map_paths,
-            "feature_maps_grid": str(feature_map_grid_path.resolve()),
+            "feature_maps_grid": portable_repo_path(feature_map_grid_path),
         },
         "feature_maps_grid_order": GRID_ORDER,
         "response_stats": response_stats,

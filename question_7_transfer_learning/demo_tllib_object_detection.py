@@ -119,6 +119,12 @@ def resolve_path(path_str: str | None, base: Path = QUESTION_DIR) -> Path | None
     return path
 
 
+def portable_repo_path(path: Path) -> str:
+    # Keep tracked summaries portable and avoid leaking the local username or
+    # absolute filesystem layout in committed artifacts.
+    return os.path.relpath(path.resolve(), start=REPO_ROOT)
+
+
 def resolve_python(repo_dir: Path, requested: str | None) -> str:
     if requested:
         return requested
@@ -779,7 +785,7 @@ def summarize_stage(
     # run, did it produce a final checkpoint, and what metrics were reported.
     summary = {
         "stage": stage_name,
-        "output_dir": str(output_dir),
+        "output_dir": portable_repo_path(output_dir),
         "log_exists": log_path.exists(),
         "model_final_exists": model_final.exists(),
         "checkpoint_count": len(checkpoints),
@@ -790,7 +796,7 @@ def summarize_stage(
         summary["adaptor_status"] = json.loads(adaptor_status_path.read_text(encoding="utf-8"))
     if visualization_dir is not None:
         png_count = len(list(visualization_dir.rglob("*.png")))
-        summary["visualization_dir"] = str(visualization_dir)
+        summary["visualization_dir"] = portable_repo_path(visualization_dir)
         summary["visualization_count"] = png_count
     return summary
 
@@ -839,8 +845,9 @@ def write_summary(summary_dir: Path, summary: dict[str, Any]) -> tuple[Path, Pat
 
 
 def collect_environment_summary(python_bin: str) -> dict[str, str]:
+    os_name = platform.system()
     summary = {
-        "platform": platform.platform(),
+        "platform": "macOS" if os_name == "Darwin" else os_name,
         "machine": platform.machine(),
     }
     try:
@@ -861,7 +868,7 @@ def collect_environment_summary(python_bin: str) -> dict[str, str]:
             version = "missing"
         summary[module_name] = version
 
-    if summary["platform"].startswith("macOS") and summary["machine"] == "arm64":
+    if summary["platform"] == "macOS" and summary["machine"] == "arm64":
         summary["note"] = (
             "Apple Silicon macOS can be slow for this Detectron2 pipeline. "
             "Use smoke profile locally; prefer OSC/Linux for full runs."
@@ -1358,7 +1365,7 @@ def main() -> int:
                 )
             summary = {
                 "profile": args.profile,
-                "dataset_root": str(active_dataset_paths["VOC2007"].parent),
+                "dataset_root": portable_repo_path(active_dataset_paths["VOC2007"].parent),
                 "environment": env_summary,
                 "stages": stages,
             }
@@ -1465,7 +1472,7 @@ def main() -> int:
 
             summary = {
                 "profile": args.profile,
-                "dataset_root": str(active_dataset_paths["VOC2007"].parent),
+                "dataset_root": portable_repo_path(active_dataset_paths["VOC2007"].parent),
                 "environment": env_summary,
                 "stages": stages,
             }

@@ -16,17 +16,7 @@ question_4_yolo11_yolov12/runs/
 # Q5 keeps only a small curated input set plus the placeholder note.
 question_5_semantic_segmentation/datasets/
 question_5_semantic_segmentation/models/
-question_5_semantic_segmentation/question_5_semantic_segmentation/
-question_5_semantic_segmentation/inputs/satellite_images/*
-!question_5_semantic_segmentation/inputs/satellite_images/PUT_SATELLITE_IMAGES_HERE.txt
-!question_5_semantic_segmentation/inputs/satellite_images/P0362.png
-!question_5_semantic_segmentation/inputs/satellite_images/P0363.png
-!question_5_semantic_segmentation/inputs/satellite_images/P0365.png
-!question_5_semantic_segmentation/inputs/satellite_images/P0366.png
-!question_5_semantic_segmentation/inputs/satellite_images/P0378.png
-!question_5_semantic_segmentation/inputs/satellite_images/P0379.png
-!question_5_semantic_segmentation/inputs/satellite_images/P0401.png
-!question_5_semantic_segmentation/inputs/satellite_images/P0404.png
+
 
 # Q7 training assets stay local, but the written summaries can be tracked.
 question_7_transfer_learning/datasets/

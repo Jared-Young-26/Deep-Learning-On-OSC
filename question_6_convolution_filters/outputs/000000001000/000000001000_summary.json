@@ -1,0 +1,82 @@
+{
+  "source_image": "question_6_convolution_filters/inputs/000000001000.jpg",
+  "output_directory": "question_6_convolution_filters/outputs/000000001000",
+  "output_stem": "000000001000",
+  "image_size": {
+    "width": 640,
+    "height": 480
+  },
+  "preprocessing": {
+    "pipeline": [
+      "rgb",
+      "grayscale",
+      "autocontrast",
+      "threshold"
+    ],
+    "threshold": 128,
+    "binary_values": [
+      0,
+      255
+    ]
+  },
+  "artifacts": {
+    "preprocessed_bw": "question_6_convolution_filters/outputs/000000001000/000000001000_preprocessed_bw.png",
+    "feature_maps": {
+      "horizontal": "question_6_convolution_filters/outputs/000000001000/000000001000_horizontal.png",
+      "vertical": "question_6_convolution_filters/outputs/000000001000/000000001000_vertical.png",
+      "upper_left": "question_6_convolution_filters/outputs/000000001000/000000001000_upper_left.png",
+      "lower_right": "question_6_convolution_filters/outputs/000000001000/000000001000_lower_right.png",
+      "upper_right": "question_6_convolution_filters/outputs/000000001000/000000001000_upper_right.png",
+      "lower_left": "question_6_convolution_filters/outputs/000000001000/000000001000_lower_left.png"
+    },
+    "feature_maps_grid": "question_6_convolution_filters/outputs/000000001000/000000001000_feature_maps_grid.png"
+  },
+  "feature_maps_grid_order": [
+    "original",
+    "preprocessed_bw",
+    "horizontal",
+    "vertical",
+    "upper_left",
+    "lower_right",
+    "upper_right",
+    "lower_left"
+  ],
+  "response_stats": {
+    "horizontal": {
+      "min": -765.0,
+      "max": 765.0,
+      "mean_abs": 78.536181640625,
+      "sum_abs": 24126315.0
+    },
+    "vertical": {
+      "min": -765.0,
+      "max": 765.0,
+      "mean_abs": 76.1978515625,
+      "sum_abs": 23407980.0
+    },
+    "upper_left": {
+      "min": -765.0,
+      "max": 765.0,
+      "mean_abs": 76.776416015625,
+      "sum_abs": 23585715.0
+    },
+    "lower_right": {
+      "min": -765.0,
+      "max": 765.0,
+      "mean_abs": 76.776416015625,
+      "sum_abs": 23585715.0
+    },
+    "upper_right": {
+      "min": -765.0,
+      "max": 765.0,
+      "mean_abs": 78.121142578125,
+      "sum_abs": 23998815.0
+    },
+    "lower_left": {
+      "min": -765.0,
+      "max": 765.0,
+      "mean_abs": 78.121142578125,
+      "sum_abs": 23998815.0
+    }
+  }
+}

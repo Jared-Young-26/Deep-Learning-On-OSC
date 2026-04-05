@@ -96,14 +96,5 @@ Example:
 - On macOS, use `download_models_fasterrcnn.sh` instead of the upstream `download_models.sh` because the upstream script assumes `wget`
 - If your OSC environment requires modules, load Python first
 
-## Pipeline Walkthrough
-
-The clean walkthrough story is:
-
-1. the setup script prepares the upstream repo and environment
-2. the download script fetches pretrained checkpoints
-3. the wrapper chooses the correct inference path
-4. the model runs on one image or a batch
-5. the wrapper saves the final annotated image into `outputs/`
 
 

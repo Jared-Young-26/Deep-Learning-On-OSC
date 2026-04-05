@@ -108,12 +108,4 @@ python3 demo_yolov12.py --source https://ultralytics.com/images/bus.jpg --device
 - `INSTALL_FLASH_ATTN=1` only makes sense on supported Linux `x86_64` CUDA nodes
 - On macOS, YOLOv12 setup intentionally skips FlashAttention instead of failing
 
-## Pipeline Walkthrough
-
-The clean presentation story is:
-
-1. each setup script prepares one upstream repo and one isolated environment
-2. each wrapper standardizes input handling and output copying
-3. the actual detection happens upstream
-4. the final annotated images are copied back into this folder for easy comparison
 

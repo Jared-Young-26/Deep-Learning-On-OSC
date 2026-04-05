@@ -190,15 +190,4 @@ Notes:
 - the pipeline does not guess exact `car` or `truck` labels
 - `building` is not a stock DOTAv1 class
 
-## Pipeline Walkthrough
 
-The clean walkthrough story is:
-
-1. bootstrap prepares the dataset and pretrained starting checkpoint
-2. training fine-tunes the OBB detector and stores the best weights under a stable alias
-3. the demo loads that checkpoint and converts detections into presentation-friendly artifacts
-4. the overlay, mask, JSON summary, and batch CSV show the final result clearly
-
-DOTA is an oriented-object detection problem, YOLO11 OBB is a practical 
-baseline for satellite imagery, and the demo still produces a 
-segmentation-style `mask.png` by rasterizing the oriented detections.

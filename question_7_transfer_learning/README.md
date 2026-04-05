@@ -194,18 +194,6 @@ The assignment-grade run writes here by default:
   - `question_7_transfer_learning/outputs/voc2clipart_benchmark/summary.json`
   - `question_7_transfer_learning/outputs/voc2clipart_benchmark/summary.md`
 
-These are the files you should use to demonstrate the assignment result.
 
-## Pipeline Walkthrough
 
-1. `doctor` output showing the environment and `resolved_model_device: cuda`
-2. source-only `log.txt` and `model_final.pth`
-3. final D-adapt phase `log.txt` and `model_final.pth`
-4. `outputs/voc2clipart_benchmark/summary.md`
-5. source-only visualization images
-6. adapted visualization images
 
-That gives you both:
-
-- quantitative evidence: `AP`, `AP50`, `AP75`
-- qualitative evidence: before/after prediction images

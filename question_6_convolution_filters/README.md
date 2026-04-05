@@ -104,10 +104,3 @@ The contact sheet is a fixed 2x4 grid in this order:
 
 That grid is the easiest artifact to show in a walkthrough because it puts the
 original image, the thresholded input, and all six feature maps in one place.
-
-## Pipeline Walkthrough
-
-1. derive one kernel per direction
-2. run convolution on the same image with each kernel
-3. compare the response strength and location
-4. show how different directional structures light up different feature maps

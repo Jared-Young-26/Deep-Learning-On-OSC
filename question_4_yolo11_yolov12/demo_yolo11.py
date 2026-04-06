@@ -20,6 +20,7 @@ DEFAULT_OUTPUT_DIR = QUESTION_DIR / "outputs" / "yolo11"
 DEFAULT_PROJECT_DIR = QUESTION_DIR / "runs" / "detect"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+SUPPORTED_OSC_PYTHON_VERSION = "3.10"
 
 # The inline script keeps the actual model invocation inside the target
 # environment while the outer file handles path resolution and artifact copying.
@@ -71,6 +72,39 @@ def resolve_python(repo_dir, requested) -> str:
     if venv_python.exists():
         return str(venv_python)
     return sys.executable
+
+
+def resolve_target_python_version(python_bin) -> str:
+    """Ask one target interpreter for its major.minor version."""
+    result = subprocess.run(
+        [
+            python_bin,
+            "-c",
+            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "no stderr output"
+        raise RuntimeError(
+            f"Unable to determine the Python version for {python_bin}.\n"
+            f"stderr: {stderr}"
+        )
+    return result.stdout.strip()
+
+
+def ensure_supported_runtime_python(python_bin) -> str:
+    """Reject unsupported target interpreters before launching YOLO."""
+    version = resolve_target_python_version(python_bin)
+    if version != SUPPORTED_OSC_PYTHON_VERSION:
+        raise RuntimeError(
+            f"YOLO11 expects Python {SUPPORTED_OSC_PYTHON_VERSION} in the target runtime, "
+            f"but {python_bin} resolved to {version}.\n"
+            "Rebuild external/ultralytics/.venv with Python 3.10 or pass --python to a Python 3.10 interpreter."
+        )
+    return version
 
 
 def resolve_project(repo_dir, project) -> Path:
@@ -325,6 +359,7 @@ def main() -> int:
 
     # Resolve every path before launching YOLO so the artifact copy step stays deterministic.
     python_bin = resolve_python(repo_dir, args.python)
+    ensure_supported_runtime_python(python_bin)
     project_dir = resolve_project(repo_dir, args.project)
     resolved_source, source_path = resolve_source(args.source)
     output_dir = resolve_output_dir(args.output_dir)
@@ -397,4 +432,15 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
+    except subprocess.CalledProcessError as exc:
+        command = " ".join(shlex.quote(part) for part in exc.cmd)
+        print(
+            f"Error: YOLO11 command failed with exit code {exc.returncode}: {command}",
+            file=sys.stderr,
+        )
+        raise SystemExit(exc.returncode) from None

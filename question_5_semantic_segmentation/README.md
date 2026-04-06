@@ -28,6 +28,9 @@ Run from the repository root:
 bash question_5_semantic_segmentation/setup_yolo11_osc.sh
 ```
 
+The setup script standardizes OSC on Python 3.10 before it creates or reuses
+`external/ultralytics/.venv`.
+
 By default, setup also bootstraps the dataset and downloads the pretrained
 `yolo11s-seg.pt` checkpoint. To refresh only the Python environment and skip the
 dataset step:
@@ -188,6 +191,7 @@ image.
 
 ## Environment Notes
 
+- Python 3.10 is the supported OSC baseline for this workflow.
 - The first bootstrap run downloads several gigabytes of dataset assets and can
   take time to extract and convert.
 - Setup and inference work on CPU. Full training is best on a CUDA-capable

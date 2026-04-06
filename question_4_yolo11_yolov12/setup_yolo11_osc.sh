@@ -7,7 +7,16 @@ DEFAULT_REPO_DIR="${REPO_ROOT}/external/ultralytics"
 
 REPO_URL="${REPO_URL:-https://github.com/ultralytics/ultralytics.git}"
 REPO_DIR="${1:-${DEFAULT_REPO_DIR}}"
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+PYTHON_BIN="${PYTHON_BIN:-}"
+SUPPORTED_PYTHON_VERSION="${SUPPORTED_PYTHON_VERSION:-3.10}"
+
+if [[ -z "${PYTHON_BIN}" ]]; then
+  if command -v python3.10 >/dev/null 2>&1; then
+    PYTHON_BIN="python3.10"
+  else
+    PYTHON_BIN="python3"
+  fi
+fi
 
 if [[ "${REPO_DIR}" != /* ]]; then
   # Resolve relative clone targets before the rest of the script uses the path.
@@ -19,7 +28,7 @@ mkdir -p "$(dirname "${REPO_DIR}")"
 
 # Stop immediately if the requested interpreter is unavailable.
 if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
-  echo "Error: ${PYTHON_BIN} was not found. Set PYTHON_BIN to a valid Python executable."
+  echo "Error: ${PYTHON_BIN} was not found. Set PYTHON_BIN to a valid Python ${SUPPORTED_PYTHON_VERSION} executable."
   exit 1
 fi
 
@@ -33,9 +42,29 @@ fi
 
 cd "${REPO_DIR}"
 
-# Create the repository-local virtual environment used by the Python entrypoint.
+# Capture the selected interpreter version before reusing or rebuilding the environment.
+SELECTED_PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+echo "Using Python interpreter: ${PYTHON_BIN} (${SELECTED_PYTHON_VERSION})"
+
+if [[ "${SELECTED_PYTHON_VERSION}" != "${SUPPORTED_PYTHON_VERSION}" ]]; then
+  echo "Error: YOLO11 OSC setup requires Python ${SUPPORTED_PYTHON_VERSION}, but selected ${SELECTED_PYTHON_VERSION}."
+  echo "Load Python ${SUPPORTED_PYTHON_VERSION} on OSC or set PYTHON_BIN to a Python ${SUPPORTED_PYTHON_VERSION} executable."
+  exit 1
+fi
+
+if [[ -x ".venv/bin/python" ]]; then
+  # Refuse to reuse an environment built with a different Python minor version.
+  EXISTING_VENV_VERSION="$(.venv/bin/python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+  if [[ "${EXISTING_VENV_VERSION}" != "${SELECTED_PYTHON_VERSION}" ]]; then
+    echo "Existing virtual environment uses Python ${EXISTING_VENV_VERSION}, but setup selected ${SELECTED_PYTHON_VERSION}."
+    echo "Remove ${REPO_DIR}/.venv and rerun, or set PYTHON_BIN to match the existing environment."
+    exit 1
+  fi
+fi
+
+# Rebuild the repository-local virtual environment used by the Python entrypoint.
 echo "Creating virtual environment at ${REPO_DIR}/.venv"
-"${PYTHON_BIN}" -m venv .venv
+"${PYTHON_BIN}" -m venv --clear .venv
 
 # Activate the environment before installing packages into it.
 source .venv/bin/activate
@@ -54,5 +83,5 @@ Next steps:
   1) cd "${REPO_DIR}"
   2) source .venv/bin/activate
   3) cd "${SCRIPT_DIR}"
-  4) python3 demo_yolo11.py --repo-dir "${REPO_DIR}"
+  4) python3.10 demo_yolo11.py --repo-dir "${REPO_DIR}"
 EOF2

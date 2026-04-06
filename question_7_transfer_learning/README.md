@@ -29,6 +29,9 @@ Run from the repository root:
 bash question_7_transfer_learning/setup_tllib_osc.sh
 ```
 
+This setup script standardizes OSC on Python 3.10 and rejects other Python
+minor versions before rebuilding `external/Transfer-Learning-Library/.venv`.
+
 Optional setup flags:
 
 ```bash
@@ -43,7 +46,7 @@ The default upstream clone location is `external/Transfer-Learning-Library`.
 Verify the environment before training:
 
 ```bash
-python3 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor
+python3.10 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor
 ```
 
 The doctor mode checks the Python environment, required modules, dataset
@@ -60,7 +63,7 @@ locations, and resolved device selection.
 Run the full smoke pipeline:
 
 ```bash
-python3 question_7_transfer_learning/demo_tllib_object_detection.py \
+python3.10 question_7_transfer_learning/demo_tllib_object_detection.py \
   --mode full-pipeline \
   --profile smoke \
   --download-datasets
@@ -69,7 +72,7 @@ python3 question_7_transfer_learning/demo_tllib_object_detection.py \
 Force a fresh smoke rerun:
 
 ```bash
-python3 question_7_transfer_learning/demo_tllib_object_detection.py \
+python3.10 question_7_transfer_learning/demo_tllib_object_detection.py \
   --mode full-pipeline \
   --profile smoke \
   --download-datasets \
@@ -107,7 +110,7 @@ ALLOW_CPU=1 PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
 Run the benchmark pipeline directly through the Python wrapper:
 
 ```bash
-python3 question_7_transfer_learning/demo_tllib_object_detection.py \
+python3.10 question_7_transfer_learning/demo_tllib_object_detection.py \
   --mode full-pipeline \
   --profile benchmark \
   --download-datasets \
@@ -137,10 +140,10 @@ Benchmark runs write to:
 
 - `run_tllib_osc.sh` uses the TLlib virtualenv Python at
   `external/Transfer-Learning-Library/.venv/bin/python` by default.
+- Python 3.10 is the only supported OSC interpreter for this workflow.
 - Benchmark runs are intended for CUDA-enabled systems; the helper refuses
   benchmark execution on CPU unless `ALLOW_CPU=1` is set.
 - `INSTALL_TORCH`, `INSTALL_DETECTRON2`, `PROFILE`, `ALLOW_CPU`, and `FORCE`
   are the primary environment variables exposed by the shell helpers.
-
 
 

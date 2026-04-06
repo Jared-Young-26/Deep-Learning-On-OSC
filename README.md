@@ -6,7 +6,21 @@ module includes its own README, runnable scripts, sample inputs, and output
 folders. Third-party source dependencies are cloned under `external/` so the
 modules can share repo-local environments.
 
-Commands below assume you are running from the repository root.
+Commands below assume you are running from the repository root with Python 3.10
+loaded on OSC.
+
+## OSC Python Baseline
+
+Use Python 3.10 for every question directory on OSC.
+
+- `q3` Faster R-CNN: Python 3.10 only.
+- `q4` YOLO11 and YOLOv12: use Python 3.10 on OSC.
+- `q5` YOLO11 segmentation: use Python 3.10 on OSC.
+- `q6` Convolution filters: use Python 3.10 on OSC.
+- `q7` TLlib/Detectron2: Python 3.10 only.
+
+See `Compatibility.md` for the audit summary and upstream support
+notes behind this baseline.
 
 ## Modules
 
@@ -16,7 +30,8 @@ Runs image object detection with a local clone of `trzy/FasterRCNN`.
 
 - Setup: `bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` installs both runtimes by default
 - Models: `bash question_3_faster_rcnn/download_models_fasterrcnn.sh`
-- Run: `python3 question_3_faster_rcnn/demo_fasterrcnn.py --mode to-file` auto-selects CUDA PyTorch or the TF2 fallback
+- Run: `python3.10 question_3_faster_rcnn/demo_fasterrcnn.py --mode to-file` auto-selects CUDA PyTorch or the TF2 fallback
+- OSC CPU-style sessions should normally resolve to the TF2 fallback; remove `external/FasterRCNN/.venv` and rerun setup if an older environment shows NumPy/Matplotlib import errors
 
 ### [YOLO11 and YOLOv12 Object Detection](question_4_yolo11_yolov12/README.md)
 
@@ -24,9 +39,9 @@ Provides separate wrappers for YOLO11 and YOLOv12 with dedicated inputs and
 outputs for each model.
 
 - YOLO11 setup: `bash question_4_yolo11_yolov12/setup_yolo11_osc.sh`
-- YOLO11 run: `python3 question_4_yolo11_yolov12/demo_yolo11.py`
-- YOLOv12 setup: `bash question_4_yolo11_yolov12/setup_yolov12_osc.sh` prefers Python 3.11 and falls back to `python3`
-- YOLOv12 run: `python3 question_4_yolo11_yolov12/demo_yolov12.py`
+- YOLO11 run: `python3.10 question_4_yolo11_yolov12/demo_yolo11.py`
+- YOLOv12 setup: `bash question_4_yolo11_yolov12/setup_yolov12_osc.sh`
+- YOLOv12 run: `python3.10 question_4_yolo11_yolov12/demo_yolov12.py`
 
 ### [Semantic Segmentation with YOLO11 and iSAID](question_5_semantic_segmentation/README.md)
 
@@ -42,8 +57,8 @@ masks for aerial imagery.
 Derives six directional convolution kernels and applies them to synthetic
 patterns or real images.
 
-- Synthetic demo: `python3 question_6_convolution_filters/demo_convolution_filters.py --size 11`
-- Image demo: `python3 question_6_convolution_filters/demo_convolution_filters_image.py --source question_6_convolution_filters/inputs --output-dir question_6_convolution_filters/outputs`
+- Synthetic demo: `python3.10 question_6_convolution_filters/demo_convolution_filters.py --size 11`
+- Image demo: `python3.10 question_6_convolution_filters/demo_convolution_filters_image.py --source question_6_convolution_filters/inputs --output-dir question_6_convolution_filters/outputs`
 
 ### [Transfer Learning Object Detection with TLlib](question_7_transfer_learning/README.md)
 
@@ -51,5 +66,5 @@ Wraps TLlib's VOC-to-Clipart domain adaptation example with environment checks,
 dataset preparation, training, and reporting.
 
 - Setup: `bash question_7_transfer_learning/setup_tllib_osc.sh`
-- Doctor: `python3 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor`
+- Doctor: `python3.10 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor`
 - Full run: `bash question_7_transfer_learning/run_tllib_osc.sh`

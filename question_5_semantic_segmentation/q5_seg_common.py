@@ -52,6 +52,7 @@ DEFAULT_DOTA_URL = "https://github.com/ultralytics/assets/releases/download/v0.0
 DEFAULT_ISAID_DATASET_PAGE_URL = "https://captain-whu.github.io/iSAID/dataset.html"
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+SUPPORTED_OSC_PYTHON_VERSION = "3.10"
 
 ISAID_CLASS_NAMES = {
     0: "plane",
@@ -176,6 +177,39 @@ def resolve_python(repo_dir, requested_python) -> str:
     return sys.executable
 
 
+def resolve_python_minor_version(python_executable) -> str:
+    """Ask one interpreter for its major.minor version."""
+    completed = subprocess.run(
+        [
+            str(python_executable),
+            "-c",
+            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        stderr = completed.stderr.strip() or "no stderr output"
+        raise RuntimeError(
+            f"Unable to determine the Python version for {python_executable}.\n"
+            f"stderr: {stderr}"
+        )
+    return completed.stdout.strip()
+
+
+def ensure_supported_repo_python_version(python_executable) -> str:
+    """Reject unsupported interpreters for the OSC segmentation workflow."""
+    version = resolve_python_minor_version(python_executable)
+    if version != SUPPORTED_OSC_PYTHON_VERSION:
+        raise RuntimeError(
+            f"YOLO11 segmentation expects Python {SUPPORTED_OSC_PYTHON_VERSION} in the target runtime, "
+            f"but {python_executable} resolved to {version}.\n"
+            "Rebuild external/ultralytics/.venv with Python 3.10 or pass --python to a Python 3.10 interpreter."
+        )
+    return version
+
+
 def maybe_reexec_with_repo_python(
     repo_dir,
     requested_python,
@@ -183,11 +217,13 @@ def maybe_reexec_with_repo_python(
     argv=None,
 ) -> None:
     """Re-run under the repository interpreter when needed."""
+    target_python = Path(resolve_python(repo_dir, requested_python)).expanduser().resolve()
+    ensure_supported_repo_python_version(target_python)
+
     # Re-exec once so later imports run under the same interpreter as the repository environment.
     if os.environ.get(marker) == "1":
         return
 
-    target_python = Path(resolve_python(repo_dir, requested_python)).expanduser().resolve()
     current_python = Path(sys.executable).expanduser().resolve()
     if target_python == current_python:
         return

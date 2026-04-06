@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import shlex
 import shutil
 import subprocess
@@ -36,6 +37,11 @@ SUPPORTED_IMAGE_SUFFIXES = {
 DEFAULT_WEIGHTS = {
     "pytorch": "fasterrcnn_pytorch_resnet50.pth",
     "tf2": "fasterrcnn_tf2.h5",
+}
+SUPPORTED_OSC_PYTHON_VERSION = "3.10"
+TF2_ENV_OVERRIDES = {
+    "CUDA_VISIBLE_DEVICES": "-1",
+    "TF_CPP_MIN_LOG_LEVEL": "2",
 }
 
 # The upstream TF2 path expects a different entrypoint shape than this file uses.
@@ -253,14 +259,56 @@ def resolve_python(repo_dir, requested) -> str:
     return sys.executable
 
 
-def run_python_probe(python_bin, probe) -> subprocess.CompletedProcess[str]:
+def run_python_probe(
+    python_bin,
+    probe,
+    env_overrides=None,
+) -> subprocess.CompletedProcess[str]:
     """Run a short Python probe in the target interpreter."""
+    env = os.environ.copy()
+    if env_overrides:
+        env.update(env_overrides)
     return subprocess.run(
         [python_bin, "-c", probe],
         check=False,
         capture_output=True,
         text=True,
+        env=env,
     )
+
+
+def resolve_target_python_version(python_bin) -> str:
+    """Ask one target interpreter for its major.minor version."""
+    result = run_python_probe(
+        python_bin,
+        "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "no stderr output"
+        raise RuntimeError(
+            f"Unable to determine the Python version for {python_bin}.\n"
+            f"stderr: {stderr}"
+        )
+    return result.stdout.strip()
+
+
+def ensure_supported_runtime_python(python_bin) -> str:
+    """Reject unsupported target interpreters before probing frameworks."""
+    version = resolve_target_python_version(python_bin)
+    if version != SUPPORTED_OSC_PYTHON_VERSION:
+        details = [
+            f"FasterRCNN expects Python {SUPPORTED_OSC_PYTHON_VERSION} in the target runtime, "
+            f"but {python_bin} resolved to {version}.",
+        ]
+        if version == "3.12":
+            details.append(
+                "Python 3.12 remains unsupported here until the PyTorch and TF2 fallback stack is revalidated."
+            )
+        details.append(
+            "Rebuild external/FasterRCNN/.venv with Python 3.10 or pass --python to a Python 3.10 interpreter."
+        )
+        raise RuntimeError("\n".join(details))
+    return version
 
 
 def pytorch_import_available(python_bin) -> bool:
@@ -281,18 +329,22 @@ def pytorch_cuda_available(python_bin) -> bool:
     return result.returncode == 0 and result.stdout.strip() == "1"
 
 
-def tensorflow_import_available(python_bin) -> bool:
-    """Check whether TensorFlow imports in the target interpreter."""
+def tf2_runtime_available(python_bin) -> bool:
+    """Check whether the TF2 fallback runtime imports cleanly."""
     probe = (
-        "import os; "
-        "os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2'); "
+        "import matplotlib.pyplot; "
+        "import numpy; "
         "import tensorflow"
     )
-    result = run_python_probe(python_bin, probe)
+    result = run_python_probe(
+        python_bin,
+        probe,
+        env_overrides=TF2_ENV_OVERRIDES,
+    )
     return result.returncode == 0
 
 
-def resolve_framework(requested_framework, python_bin) -> str:
+def resolve_framework(requested_framework, python_bin, repo_dir) -> str:
     """Resolve the implementation to run from the prepared environment."""
     if requested_framework == "pytorch":
         if not pytorch_import_available(python_bin):
@@ -312,27 +364,29 @@ def resolve_framework(requested_framework, python_bin) -> str:
         return "pytorch"
 
     if requested_framework == "tf2":
-        if not tensorflow_import_available(python_bin):
+        if not tf2_runtime_available(python_bin):
             raise RuntimeError(
-                f"TensorFlow is not available in {python_bin}.\n"
-                "Rerun `INSTALL_TF2=1 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` "
-                "to install the TF2 fallback, or use `--framework pytorch` on a "
-                "CUDA-enabled system."
+                f"The TF2 fallback runtime is incomplete or inconsistent in {python_bin}.\n"
+                "It must import numpy, matplotlib.pyplot, and tensorflow together.\n"
+                f"Remove {repo_dir / '.venv'} and rerun "
+                "`bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh`, or use "
+                "`--framework pytorch` on a CUDA-enabled system."
             )
         return "tf2"
 
     if pytorch_import_available(python_bin) and pytorch_cuda_available(python_bin):
         return "pytorch"
-    if tensorflow_import_available(python_bin):
+    if tf2_runtime_available(python_bin):
         return "tf2"
 
     raise RuntimeError(
         "Auto framework selection could not find a usable FasterRCNN runtime in "
         f"{python_bin}.\n"
-        "The upstream PyTorch path requires CUDA, and the TF2 fallback requires "
-        "TensorFlow. Rerun "
-        "`INSTALL_TF2=1 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` "
-        "or run on a CUDA-enabled system."
+        "The upstream PyTorch path requires CUDA, and the TF2 fallback must "
+        "import numpy, matplotlib.pyplot, and tensorflow together.\n"
+        f"Remove {repo_dir / '.venv'} and rerun "
+        "`bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh`, or run on a "
+        "CUDA-enabled system."
     )
 
 
@@ -766,6 +820,19 @@ def build_command(
     return command
 
 
+def build_subprocess_env(framework, python_bin) -> dict[str, str] | None:
+    """Build the environment for the selected upstream command."""
+    if framework != "tf2":
+        return None
+
+    if pytorch_cuda_available(python_bin):
+        return None
+
+    env = os.environ.copy()
+    env.update(TF2_ENV_OVERRIDES)
+    return env
+
+
 def print_command(command, index, total) -> None:
     """Print the command before running it."""
     # Prefix batch commands with their position in the run.
@@ -799,7 +866,8 @@ def main() -> int:
         )
 
     python_bin = resolve_python(repo_dir, args.python)
-    framework = resolve_framework(args.framework, python_bin)
+    ensure_supported_runtime_python(python_bin)
+    framework = resolve_framework(args.framework, python_bin, repo_dir)
 
     # Resolve the inputs once so the execution loop can stay simple.
     # At this point the file knows which framework, weights, inputs, and outputs
@@ -850,6 +918,7 @@ def main() -> int:
             mode=args.mode,
             output_path=output_path,
         )
+        command_env = build_subprocess_env(framework, python_bin)
 
         if args.verbose_command or args.dry_run:
             print_command(command, index=index, total=total_jobs)
@@ -867,7 +936,7 @@ def main() -> int:
 
         # The heavy lifting stays upstream; this file's job is to make sure
         # every run enters with consistent paths, weights, and save behavior.
-        subprocess.run(command, cwd=repo_dir, check=True)
+        subprocess.run(command, cwd=repo_dir, check=True, env=command_env)
 
         # The PyTorch implementation always writes predictions.png in the repo,
         # so this file copies that canonical artifact into the local output path.

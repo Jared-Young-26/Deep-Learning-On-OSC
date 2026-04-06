@@ -9,6 +9,8 @@ REPO_URL="${REPO_URL:-https://github.com/trzy/FasterRCNN.git}"
 REPO_DIR="${1:-${DEFAULT_REPO_DIR}}"
 OS_NAME="$(uname -s)"
 PYTHON_BIN="${PYTHON_BIN:-}"
+TF2_NUMPY_SPEC="${TF2_NUMPY_SPEC:-numpy>=1.26,<2}"
+SUPPORTED_PYTHON_VERSION="${SUPPORTED_PYTHON_VERSION:-3.10}"
 
 # Install the TF2 fallback by default so one OSC setup command prepares both the
 # CUDA PyTorch path and the CPU-capable fallback runtime.
@@ -16,10 +18,10 @@ if [[ -z "${INSTALL_TF2:-}" ]]; then
   INSTALL_TF2="1"
 fi
 
-# Prefer Python 3.11 when it is available.
+# Prefer Python 3.10 when it is available on OSC.
 if [[ -z "${PYTHON_BIN}" ]]; then
-  if command -v python3.11 >/dev/null 2>&1; then
-    PYTHON_BIN="python3.11"
+  if command -v python3.10 >/dev/null 2>&1; then
+    PYTHON_BIN="python3.10"
   else
     PYTHON_BIN="python3"
   fi
@@ -33,7 +35,7 @@ fi
 # Stop immediately if the requested interpreter is unavailable.
 if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
   echo "Error: ${PYTHON_BIN} was not found."
-  echo "Set PYTHON_BIN to a valid Python interpreter, ideally Python 3.11."
+  echo "Set PYTHON_BIN to a valid Python ${SUPPORTED_PYTHON_VERSION} interpreter."
   exit 1
 fi
 
@@ -53,6 +55,13 @@ cd "${REPO_DIR}"
 # Capture the selected interpreter version before reusing or rebuilding the environment.
 SELECTED_PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 echo "Using Python interpreter: ${PYTHON_BIN} (${SELECTED_PYTHON_VERSION})"
+
+if [[ "${SELECTED_PYTHON_VERSION}" != "${SUPPORTED_PYTHON_VERSION}" ]]; then
+  echo "Error: FasterRCNN OSC setup requires Python ${SUPPORTED_PYTHON_VERSION}, but selected ${SELECTED_PYTHON_VERSION}."
+  echo "Python 3.12 remains unsupported here until the PyTorch and TF2 fallback stack is revalidated."
+  echo "Load Python ${SUPPORTED_PYTHON_VERSION} on OSC or set PYTHON_BIN to a Python ${SUPPORTED_PYTHON_VERSION} executable."
+  exit 1
+fi
 
 if [[ -x ".venv/bin/python" ]]; then
   # Refuse to reuse an environment built with a different Python minor version.
@@ -91,13 +100,50 @@ else
 fi
 
 if [[ "${INSTALL_TF2}" == "1" ]]; then
+  # Keep the shared TF2/PyTorch environment on a NumPy 1.x line so the
+  # compiled Matplotlib wheel remains compatible on OSC Python 3.9.
+  echo "Pinning shared NumPy runtime to ${TF2_NUMPY_SPEC}."
+  pip install "${TF2_NUMPY_SPEC}"
+  TF2_CONSTRAINTS_FILE="$(mktemp)"
+  trap 'rm -f "${TF2_CONSTRAINTS_FILE}"' EXIT
+  printf '%s\n' "${TF2_NUMPY_SPEC}" > "${TF2_CONSTRAINTS_FILE}"
+
   # Install the TensorFlow dependency set when it is enabled.
   echo "Installing TensorFlow dependencies."
-  pip install -r tf2/requirements.txt
-  if [[ "${OS_NAME}" == "Darwin" ]]; then
-    echo "Re-pinning NumPy below 2 for TensorFlow/Matplotlib compatibility on macOS."
-    pip install "numpy<2"
+  pip install -c "${TF2_CONSTRAINTS_FILE}" -r tf2/requirements.txt
+
+  # Reinstall the NumPy-sensitive compiled packages after the final NumPy choice
+  # so the TF2 fallback is not left in a mixed NumPy-major state.
+  echo "Reinstalling NumPy-sensitive wheels for the final TF2 runtime."
+  pip install --force-reinstall -c "${TF2_CONSTRAINTS_FILE}" \
+    "matplotlib==3.7.1" \
+    h5py
+
+  echo "Validating TF2 fallback environment."
+  if ! VALIDATION_OUTPUT="$(
+    CUDA_VISIBLE_DEVICES="-1" TF_CPP_MIN_LOG_LEVEL="2" "${REPO_DIR}/.venv/bin/python" - <<'PY'
+import sys
+
+import matplotlib
+import matplotlib.pyplot  # noqa: F401
+import numpy
+import tensorflow as tf
+import torch
+
+print("Environment validation:")
+print(f"  python: {sys.version.split()[0]}")
+print(f"  numpy: {numpy.__version__}")
+print(f"  matplotlib: {matplotlib.__version__}")
+print(f"  tensorflow: {tf.__version__}")
+print(f"  torch: {getattr(torch, '__version__', 'unknown')}")
+PY
+  )"; then
+    echo "Error: TF2 fallback validation failed in ${REPO_DIR}/.venv." >&2
+    echo "The repo-local FasterRCNN environment must import numpy, matplotlib.pyplot, and tensorflow together." >&2
+    echo "Remove ${REPO_DIR}/.venv and rerun bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh." >&2
+    exit 1
   fi
+  printf '%s\n' "${VALIDATION_OUTPUT}"
 fi
 
 # Print the next commands for the prepared environment.
@@ -109,5 +155,5 @@ Next steps:
   2) cd "${SCRIPT_DIR}"
   3) bash download_models_fasterrcnn.sh
   4) cd "${SCRIPT_DIR}"
-  5) python3 demo_fasterrcnn.py --repo-dir "${REPO_DIR}"
+  5) python3.10 demo_fasterrcnn.py --repo-dir "${REPO_DIR}"
 EOF

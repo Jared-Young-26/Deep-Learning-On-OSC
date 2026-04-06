@@ -19,20 +19,26 @@ feature maps that highlight horizontal, vertical, and diagonal responses.
 ## Setup
 
 No module-specific setup script is included. Run the Python scripts from an
-environment that has the required Python dependencies available.
+environment that has the required Python dependencies available. On OSC, the
+supported baseline is Python 3.10.
+
+Minimal dependencies:
+
+- Synthetic demo: Python 3.10 only.
+- Real-image demo: Python 3.10 plus `Pillow`.
 
 ## Run
 
 Synthetic demo:
 
 ```bash
-python3 question_6_convolution_filters/demo_convolution_filters.py --size 11
+python3.10 question_6_convolution_filters/demo_convolution_filters.py --size 11
 ```
 
 Real-image demo on one image:
 
 ```bash
-python3 question_6_convolution_filters/demo_convolution_filters_image.py \
+python3.10 question_6_convolution_filters/demo_convolution_filters_image.py \
   --source question_6_convolution_filters/inputs/000000001000.jpg \
   --output-dir question_6_convolution_filters/outputs
 ```
@@ -40,7 +46,7 @@ python3 question_6_convolution_filters/demo_convolution_filters_image.py \
 Real-image demo on a directory:
 
 ```bash
-python3 question_6_convolution_filters/demo_convolution_filters_image.py \
+python3.10 question_6_convolution_filters/demo_convolution_filters_image.py \
   --source question_6_convolution_filters/inputs \
   --output-dir question_6_convolution_filters/outputs
 ```

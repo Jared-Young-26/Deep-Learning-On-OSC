@@ -24,10 +24,12 @@ bash question_3_faster_rcnn/download_models_fasterrcnn.sh
 ```
 
 The default upstream clone location is `external/FasterRCNN`.
-The OSC setup installs both the CUDA PyTorch runtime and the TF2 fallback by
-default so the demo can auto-select a usable backend at run time.
+The OSC setup requires Python 3.10 and installs both the CUDA PyTorch runtime
+and the TF2 fallback by default so the demo can auto-select a usable backend at
+run time.
 
-For a lighter PyTorch-only environment, opt out of the TF2 install explicitly:
+For a lighter GPU-only PyTorch environment, opt out of the TF2 install
+explicitly:
 
 ```bash
 INSTALL_TF2=0 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh
@@ -39,13 +41,13 @@ Default run on the built-in sample URL. This uses `--framework auto`, which
 prefers PyTorch on CUDA nodes and falls back to TF2 otherwise:
 
 ```bash
-python3 question_3_faster_rcnn/demo_fasterrcnn.py --mode to-file
+python3.10 question_3_faster_rcnn/demo_fasterrcnn.py --mode to-file
 ```
 
 Run on one local image:
 
 ```bash
-python3 question_3_faster_rcnn/demo_fasterrcnn.py \
+python3.10 question_3_faster_rcnn/demo_fasterrcnn.py \
   --image question_3_faster_rcnn/inputs/000000001000.jpg \
   --mode to-file
 ```
@@ -53,7 +55,7 @@ python3 question_3_faster_rcnn/demo_fasterrcnn.py \
 Run on a directory recursively:
 
 ```bash
-python3 question_3_faster_rcnn/demo_fasterrcnn.py \
+python3.10 question_3_faster_rcnn/demo_fasterrcnn.py \
   --image question_3_faster_rcnn/inputs \
   --mode to-file
 ```
@@ -61,7 +63,7 @@ python3 question_3_faster_rcnn/demo_fasterrcnn.py \
 Force the CUDA-backed PyTorch path explicitly when needed:
 
 ```bash
-python3 question_3_faster_rcnn/demo_fasterrcnn.py \
+python3.10 question_3_faster_rcnn/demo_fasterrcnn.py \
   --framework pytorch \
   --mode to-file
 ```
@@ -69,7 +71,7 @@ python3 question_3_faster_rcnn/demo_fasterrcnn.py \
 Force the CPU-capable TF2 path explicitly when needed:
 
 ```bash
-python3 question_3_faster_rcnn/demo_fasterrcnn.py \
+python3.10 question_3_faster_rcnn/demo_fasterrcnn.py \
   --framework tf2 \
   --mode to-file
 ```
@@ -92,8 +94,20 @@ python3 question_3_faster_rcnn/demo_fasterrcnn.py \
 - The wrapper defaults to `auto` and resolves to `pytorch` when CUDA is
   available in the repo-local environment, otherwise `tf2` when TensorFlow is
   installed.
+- Python 3.10 is the only supported OSC interpreter for this workflow.
+- On OSC Jupyter/login-style CPU sessions, `framework: tf2` is expected because
+  those sessions typically do not expose a CUDA device.
 - `--mode to-file` is the practical choice for headless systems.
 - `--mode viewer` opens an image window and is intended for GUI environments.
 - `--framework pytorch` is strict and requires CUDA.
 - `--framework tf2` is the supported CPU fallback and requires TensorFlow in the
   repo-local FasterRCNN environment.
+
+## Troubleshooting
+
+- If setup completed on an older revision and the TF2 fallback now fails with
+  NumPy or Matplotlib import errors, remove `external/FasterRCNN/.venv` and rerun
+  `bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh`.
+- If you only need the CUDA-backed PyTorch path on a GPU node, use
+  `INSTALL_TF2=0 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` for the
+  faster GPU-only setup.

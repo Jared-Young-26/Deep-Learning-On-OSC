@@ -41,6 +41,7 @@ DEFAULT_BENCHMARK_ADAPT_OUTPUT_ROOT = (
 DEFAULT_BENCHMARK_VISUALIZATION_ROOT = QUESTION_DIR / "visualizations" / "voc2clipart_benchmark"
 DEFAULT_BENCHMARK_SUMMARY_DIR = QUESTION_DIR / "outputs" / "voc2clipart_benchmark"
 REQUIRED_MODULES = ("detectron2", "timm")
+SUPPORTED_OSC_PYTHON_VERSION = "3.10"
 REQUIRED_DATASET_SUBPATHS = (
     Path("Annotations"),
     Path("JPEGImages"),
@@ -234,6 +235,28 @@ def run_python_probe(python_bin, code) -> str:
     )
     # Strip the trailing newline so callers can embed the value directly.
     return result.stdout.strip()
+
+
+def ensure_supported_runtime_python(python_bin) -> str:
+    """Reject unsupported target interpreters before TLlib preflight runs."""
+    version = run_python_probe(
+        python_bin,
+        "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+    )
+    if version != SUPPORTED_OSC_PYTHON_VERSION:
+        details = [
+            f"TLlib expects Python {SUPPORTED_OSC_PYTHON_VERSION} in the target runtime, "
+            f"but {python_bin} resolved to {version}.",
+        ]
+        if version == "3.12":
+            details.append(
+                "Python 3.12 remains unsupported here until the Detectron2-backed object-detection stack is revalidated."
+            )
+        details.append(
+            "Rebuild external/Transfer-Learning-Library/.venv with Python 3.10 or pass --python to a Python 3.10 interpreter."
+        )
+        raise RuntimeError("\n".join(details))
+    return version
 
 
 def validate_python_environment(python_bin) -> None:
@@ -1365,6 +1388,7 @@ def main() -> int:
 
         # Resolve the interpreter, script directories, configs, and output folders.
         python_bin = resolve_python(repo_dir, args.python)
+        ensure_supported_runtime_python(python_bin)
         object_detection_dir = find_object_detection_dir(repo_dir)
         dadapt_dir = find_dadapt_dir(object_detection_dir)
         source_config_file = resolve_config_file(args.config_file, object_detection_dir)

@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import platform
 import shlex
 import shutil
 import subprocess
@@ -236,10 +235,10 @@ def infer_backbone(weights) -> str | None:
 
 
 def infer_default_framework() -> str:
-    # On macOS the TF2 path is the practical default because the upstream PyTorch
-    # implementation expects CUDA, while Linux systems commonly run the PyTorch path.
-    """Pick the default framework for this machine."""
-    return "tf2" if platform.system() == "Darwin" else "pytorch"
+    # Resolve the practical runtime from the target environment instead of the host
+    # platform so one default command works on both OSC GPU and CPU nodes.
+    """Pick the default framework mode for this machine."""
+    return "auto"
 
 
 def resolve_python(repo_dir, requested) -> str:
@@ -254,6 +253,22 @@ def resolve_python(repo_dir, requested) -> str:
     return sys.executable
 
 
+def run_python_probe(python_bin, probe) -> subprocess.CompletedProcess[str]:
+    """Run a short Python probe in the target interpreter."""
+    return subprocess.run(
+        [python_bin, "-c", probe],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def pytorch_import_available(python_bin) -> bool:
+    """Check whether PyTorch imports in the target interpreter."""
+    result = run_python_probe(python_bin, "import torch")
+    return result.returncode == 0
+
+
 def pytorch_cuda_available(python_bin) -> bool:
     # The upstream PyTorch path is CUDA-only, so check that before launching a run
     # that would otherwise fail after all path resolution is already done.
@@ -262,13 +277,63 @@ def pytorch_cuda_available(python_bin) -> bool:
         "import torch; "
         "print('1' if getattr(torch.cuda, 'is_available', lambda: False)() else '0')"
     )
-    result = subprocess.run(
-        [python_bin, "-c", probe],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    result = run_python_probe(python_bin, probe)
     return result.returncode == 0 and result.stdout.strip() == "1"
+
+
+def tensorflow_import_available(python_bin) -> bool:
+    """Check whether TensorFlow imports in the target interpreter."""
+    probe = (
+        "import os; "
+        "os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2'); "
+        "import tensorflow"
+    )
+    result = run_python_probe(python_bin, probe)
+    return result.returncode == 0
+
+
+def resolve_framework(requested_framework, python_bin) -> str:
+    """Resolve the implementation to run from the prepared environment."""
+    if requested_framework == "pytorch":
+        if not pytorch_import_available(python_bin):
+            raise RuntimeError(
+                f"PyTorch is not available in {python_bin}.\n"
+                "Rerun `bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` "
+                "to install the FasterRCNN runtime."
+            )
+        if not pytorch_cuda_available(python_bin):
+            raise RuntimeError(
+                "The upstream PyTorch FasterRCNN implementation is CUDA-only and "
+                f"cannot run in {python_bin}.\n"
+                "Use `--framework tf2` if TensorFlow is installed, rerun "
+                "`INSTALL_TF2=1 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh`, "
+                "or run the PyTorch path on a CUDA-enabled system."
+            )
+        return "pytorch"
+
+    if requested_framework == "tf2":
+        if not tensorflow_import_available(python_bin):
+            raise RuntimeError(
+                f"TensorFlow is not available in {python_bin}.\n"
+                "Rerun `INSTALL_TF2=1 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` "
+                "to install the TF2 fallback, or use `--framework pytorch` on a "
+                "CUDA-enabled system."
+            )
+        return "tf2"
+
+    if pytorch_import_available(python_bin) and pytorch_cuda_available(python_bin):
+        return "pytorch"
+    if tensorflow_import_available(python_bin):
+        return "tf2"
+
+    raise RuntimeError(
+        "Auto framework selection could not find a usable FasterRCNN runtime in "
+        f"{python_bin}.\n"
+        "The upstream PyTorch path requires CUDA, and the TF2 fallback requires "
+        "TensorFlow. Rerun "
+        "`INSTALL_TF2=1 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` "
+        "or run on a CUDA-enabled system."
+    )
 
 
 # Input resolution supports an explicit local file, a whole input directory,
@@ -550,11 +615,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--framework",
-        choices=("pytorch", "tf2"),
+        choices=("auto", "pytorch", "tf2"),
         default=infer_default_framework(),
         help=(
-            "Choose which implementation to run. Defaults to tf2 on macOS "
-            "and pytorch elsewhere."
+            "Choose which implementation to run. Defaults to auto, which picks "
+            "PyTorch on CUDA nodes and TF2 otherwise."
         ),
     )
     parser.add_argument(
@@ -609,6 +674,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def format_run_summary(
+    requested_framework,
     framework,
     weights,
     mode,
@@ -628,6 +694,8 @@ def format_run_summary(
             f"  images: {len(selection.jobs)}",
             f"  weights: {weights}",
         ]
+        if requested_framework != framework:
+            lines.insert(2, f"  requested framework: {requested_framework}")
         if output_label:
             lines.append(f"  output root: {output_label}")
         return "\n".join(lines)
@@ -640,6 +708,8 @@ def format_run_summary(
         f"  image: {selection.jobs[0].display_input}",
         f"  weights: {weights}",
     ]
+    if requested_framework != framework:
+        lines.insert(2, f"  requested framework: {requested_framework}")
     if output_label:
         lines.append(f"  output: {output_label}")
     return "\n".join(lines)
@@ -720,25 +790,21 @@ def main() -> int:
     # First verify that the requested repo really contains the expected upstream code.
     if not repo_dir.exists():
         raise FileNotFoundError(f"Repo directory does not exist: {repo_dir}")
-    if not (repo_dir / args.framework).exists():
+    required_dirs = ("pytorch", "tf2")
+    missing_dirs = [name for name in required_dirs if not (repo_dir / name).exists()]
+    if missing_dirs:
         raise FileNotFoundError(
             f"{repo_dir} does not look like a FasterRCNN clone "
-            f"(missing {args.framework}/ directory)."
+            f"(missing {', '.join(f'{name}/' for name in missing_dirs)})."
         )
 
     python_bin = resolve_python(repo_dir, args.python)
-    if args.framework == "pytorch" and not pytorch_cuda_available(python_bin):
-        raise RuntimeError(
-            "The upstream PyTorch FasterRCNN implementation is CUDA-only and "
-            "cannot run on this machine.\n"
-            "Use `--framework tf2` for a local Mac/CPU demo, or run the "
-            "PyTorch path on a CUDA-enabled system."
-        )
+    framework = resolve_framework(args.framework, python_bin)
 
     # Resolve the inputs once so the execution loop can stay simple.
     # At this point the file knows which framework, weights, inputs, and outputs
     # will be used before it launches any upstream inference code.
-    weights = args.weights or DEFAULT_WEIGHTS[args.framework]
+    weights = args.weights or DEFAULT_WEIGHTS[framework]
     resolved_weights = resolve_weights(repo_dir, weights)
     selection = resolve_input_selection(repo_dir, args.image, dry_run=args.dry_run)
 
@@ -757,10 +823,11 @@ def main() -> int:
     # path, so infer it once here instead of asking the user to duplicate it.
 
     # Print one high-level summary before any subprocesses start.
-    if not args.verbose_command and not args.dry_run:
+    if args.dry_run or not args.verbose_command:
         print(
             format_run_summary(
-                framework=args.framework,
+                requested_framework=args.framework,
+                framework=framework,
                 weights=resolved_weights,
                 mode=args.mode,
                 selection=selection,
@@ -775,7 +842,7 @@ def main() -> int:
         # Each iteration turns one normalized job description into the exact
         # upstream command line needed for TF2 or PyTorch inference.
         command = build_command(
-            framework=args.framework,
+            framework=framework,
             python_bin=python_bin,
             weights=resolved_weights,
             backbone=backbone,
@@ -807,7 +874,7 @@ def main() -> int:
         if output_path is None:
             continue
 
-        if args.framework == "pytorch":
+        if framework == "pytorch":
             generated = repo_dir / "predictions.png"
             if generated.exists():
                 # Copy the canonical upstream saved image to the resolved destination.
@@ -831,4 +898,16 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
+    except subprocess.CalledProcessError as exc:
+        command = " ".join(shlex.quote(part) for part in exc.cmd)
+        print(
+            f"Error: upstream FasterRCNN command failed with exit code "
+            f"{exc.returncode}: {command}",
+            file=sys.stderr,
+        )
+        raise SystemExit(exc.returncode) from None

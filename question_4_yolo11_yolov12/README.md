@@ -27,6 +27,16 @@ bash question_4_yolo11_yolov12/setup_yolo11_osc.sh
 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
 ```
 
+`setup_yolov12_osc.sh` prefers Python 3.11 when it is available and falls back
+to `python3` when 3.11 is not on `PATH`.
+
+OSC examples:
+
+```bash
+PYTHON_BIN=/path/to/python3.11 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
+bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
+```
+
 ## Run
 
 YOLO11 on the default input directory:
@@ -54,6 +64,9 @@ YOLOv12 on the default input directory:
 ```bash
 python3 question_4_yolo11_yolov12/demo_yolov12.py
 ```
+
+By default, `demo_yolov12.py` expects the repo-local YOLOv12 checkout at
+`external/yolov12`. Pass `--repo-dir` if you cloned YOLOv12 somewhere else.
 
 YOLOv12 on one local image with CPU inference:
 
@@ -90,5 +103,4 @@ python3 question_4_yolo11_yolov12/demo_yolov12.py \
   inference.
 - Supported input suffixes are `.jpg`, `.jpeg`, `.png`, `.bmp`, and `.webp`.
 - `INSTALL_FLASH_ATTN=1 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh`
-  is only intended for Linux `x86_64` CUDA systems.
-
+  is only intended for Linux `x86_64` Python 3.11 CUDA systems.

@@ -64,13 +64,17 @@ model.predict(**predict_kwargs)
 # launched from the repository root or from this directory.
 def resolve_python(repo_dir, requested) -> str:
     """Resolve the Python executable used for inference."""
-    # Prefer the repository-local virtual environment when it exists.
+    # Respect an explicit interpreter override first.
     if requested:
         return requested
     venv_python = repo_dir / ".venv" / "bin" / "python"
-    if venv_python.exists():
-        return str(venv_python)
-    return sys.executable
+    if not venv_python.exists():
+        raise FileNotFoundError(
+            f"YOLOv12 setup appears incomplete for {repo_dir}: missing {venv_python}. "
+            "Run `bash question_4_yolo11_yolov12/setup_yolov12_osc.sh` from the repository root "
+            "or pass `--python <interpreter>` if you prepared the environment elsewhere."
+        )
+    return str(venv_python)
 
 
 def resolve_project(repo_dir, project) -> Path:
@@ -313,13 +317,27 @@ def main() -> int:
     """Run the YOLOv12 inference flow."""
     args = build_parser().parse_args()
     repo_dir = Path(args.repo_dir).expanduser().resolve()
+    default_repo_dir = DEFAULT_REPO_DIR.resolve()
 
     # Validate that the requested upstream checkout is really the YOLOv12 repo clone.
     if not repo_dir.exists():
-        raise FileNotFoundError(f"Repo directory does not exist: {repo_dir}")
+        if repo_dir == default_repo_dir:
+            raise FileNotFoundError(
+                f"Repo directory does not exist: {repo_dir}. "
+                "Run `bash question_4_yolo11_yolov12/setup_yolov12_osc.sh` from the repository root "
+                "to create the default checkout at `external/yolov12`, or pass `--repo-dir <path>` "
+                "if you cloned YOLOv12 elsewhere."
+            )
+        raise FileNotFoundError(
+            f"Repo directory does not exist: {repo_dir}. "
+            f"Pass a valid `--repo-dir` or run `bash question_4_yolo11_yolov12/setup_yolov12_osc.sh` "
+            f"to create the default checkout at {default_repo_dir}."
+        )
     if not (repo_dir / "ultralytics").exists():
         raise FileNotFoundError(
-            f"{repo_dir} does not look like a yolov12 clone (missing ultralytics/)."
+            f"{repo_dir} does not look like a yolov12 clone (missing ultralytics/). "
+            "Run `bash question_4_yolo11_yolov12/setup_yolov12_osc.sh` to create the default checkout "
+            "or pass `--repo-dir <path>` that points at a YOLOv12 clone."
         )
 
     # Resolve every path before launching YOLO so the artifact copy step stays deterministic.

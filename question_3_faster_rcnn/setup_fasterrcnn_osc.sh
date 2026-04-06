@@ -10,13 +10,10 @@ REPO_DIR="${1:-${DEFAULT_REPO_DIR}}"
 OS_NAME="$(uname -s)"
 PYTHON_BIN="${PYTHON_BIN:-}"
 
-# Choose the default framework family from the current operating system.
+# Install the TF2 fallback by default so one OSC setup command prepares both the
+# CUDA PyTorch path and the CPU-capable fallback runtime.
 if [[ -z "${INSTALL_TF2:-}" ]]; then
-  if [[ "${OS_NAME}" == "Darwin" ]]; then
-    INSTALL_TF2="1"
-  else
-    INSTALL_TF2="0"
-  fi
+  INSTALL_TF2="1"
 fi
 
 # Prefer Python 3.11 when it is available.

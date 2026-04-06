@@ -14,9 +14,9 @@ Commands below assume you are running from the repository root.
 
 Runs image object detection with a local clone of `trzy/FasterRCNN`.
 
-- Setup: `bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh`
+- Setup: `bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` installs both runtimes by default
 - Models: `bash question_3_faster_rcnn/download_models_fasterrcnn.sh`
-- Run: `python3 question_3_faster_rcnn/demo_fasterrcnn.py --mode to-file`
+- Run: `python3 question_3_faster_rcnn/demo_fasterrcnn.py --mode to-file` auto-selects CUDA PyTorch or the TF2 fallback
 
 ### [YOLO11 and YOLOv12 Object Detection](question_4_yolo11_yolov12/README.md)
 
@@ -25,7 +25,7 @@ outputs for each model.
 
 - YOLO11 setup: `bash question_4_yolo11_yolov12/setup_yolo11_osc.sh`
 - YOLO11 run: `python3 question_4_yolo11_yolov12/demo_yolo11.py`
-- YOLOv12 setup: `bash question_4_yolo11_yolov12/setup_yolov12_osc.sh`
+- YOLOv12 setup: `bash question_4_yolo11_yolov12/setup_yolov12_osc.sh` prefers Python 3.11 and falls back to `python3`
 - YOLOv12 run: `python3 question_4_yolo11_yolov12/demo_yolov12.py`
 
 ### [Semantic Segmentation with YOLO11 and iSAID](question_5_semantic_segmentation/README.md)

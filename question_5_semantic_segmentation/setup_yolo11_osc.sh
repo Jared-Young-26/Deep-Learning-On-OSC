@@ -10,19 +10,20 @@ REPO_DIR="${1:-${DEFAULT_REPO_DIR}}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 if [[ "${REPO_DIR}" != /* ]]; then
-  # Accept relative clone targets from either the repo root or the question folder.
+  # Resolve relative clone targets before the rest of the script uses the path.
   REPO_DIR="${PWD}/${REPO_DIR}"
 fi
 
+# Create the parent directory before cloning into it.
 mkdir -p "$(dirname "${REPO_DIR}")"
 
+# Stop immediately if the requested interpreter is unavailable.
 if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
   echo "Error: ${PYTHON_BIN} was not found. Set PYTHON_BIN to a valid Python executable."
   exit 1
 fi
 
-# Clone once into external/ so this question folder only keeps the project-facing
-# wrapper scripts, datasets, and outputs.
+# Reuse the existing clone when it is already present.
 if [[ -d "${REPO_DIR}/.git" ]]; then
   echo "Using existing clone at ${REPO_DIR}"
 else
@@ -32,8 +33,7 @@ fi
 
 cd "${REPO_DIR}"
 
-# Reuse the environment when possible because Question 5 may be run repeatedly
-# across bootstrap, training, and forward-only demo steps.
+# Reuse the virtual environment when it already exists.
 if [[ -d "${REPO_DIR}/.venv" ]]; then
   REUSED_VENV=1
   echo "Reusing existing virtual environment at ${REPO_DIR}/.venv"
@@ -43,9 +43,10 @@ else
   "${PYTHON_BIN}" -m venv .venv
 fi
 
+# Activate the environment before installing or checking packages.
 source .venv/bin/activate
 
-# Keep packaging tools in a range known to work with this editable Ultralytics setup.
+# Verify the packaging tool versions before reinstalling them.
 if python - <<'PY'
 from importlib.metadata import PackageNotFoundError, version
 
@@ -75,10 +76,23 @@ else
   python -m pip install --disable-pip-version-check --upgrade "pip<27" "setuptools<82" wheel
 fi
 
-# OBB utilities depend on a recent Shapely, so validate or upgrade it explicitly.
-# Remove any older ultralytics wheel first so the editable install below is the
-# version Python actually imports during bootstrap/train/demo.
-pip uninstall -y ultralytics >/dev/null 2>&1 || true
+# Remove stale Ultralytics package metadata before reinstalling the local clone.
+python - <<'PY'
+import shutil
+import sysconfig
+from pathlib import Path
+
+purelib = Path(sysconfig.get_paths()["purelib"])
+for path in sorted(purelib.glob("ultralytics*")):
+    if path.name == "ultralytics" and path.is_dir():
+        shutil.rmtree(path, ignore_errors=True)
+    elif path.name.startswith("ultralytics-") and (path.suffix == ".dist-info" or path.suffix == ".egg-info"):
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            path.unlink(missing_ok=True)
+PY
+# Check that Shapely is new enough for the segmentation utilities.
 if python - <<'PY'
 from importlib.metadata import PackageNotFoundError, version
 
@@ -106,19 +120,46 @@ else
   pip install --disable-pip-version-check --upgrade "shapely>=2.0.0"
 fi
 
-# Install the local source tree itself, then prove the import resolves from this venv.
-if [[ "${REUSED_VENV}" == "1" ]]; then
-  pip install --disable-pip-version-check --no-build-isolation --no-deps --force-reinstall .
+# Check that gdown is available before running the dataset bootstrap.
+if python - <<'PY'
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    version("gdown")
+except PackageNotFoundError:
+    raise SystemExit(1)
+
+raise SystemExit(0)
+PY
+then
+  echo "gdown already installed."
 else
-  pip install --disable-pip-version-check --no-build-isolation --force-reinstall . "shapely>=2.0.0"
+  pip install --disable-pip-version-check --upgrade "gdown>=5,<6"
 fi
 
+# Reinstall the local source tree into the active environment.
+if [[ "${REUSED_VENV}" == "1" ]]; then
+  pip install --disable-pip-version-check --no-build-isolation --no-deps --ignore-installed .
+else
+  pip install --disable-pip-version-check --no-build-isolation --ignore-installed . "shapely>=2.0.0"
+fi
+
+# Confirm that the active environment imports the local Ultralytics package.
 echo "Verifying Ultralytics import..."
 python -c "import ultralytics; print(ultralytics.__file__)"
 
-# End with the exact three-step workflow the rest of Question 5 expects.
+AUTO_BOOTSTRAP_DATASET="${AUTO_BOOTSTRAP_DATASET:-1}"
+if [[ "${AUTO_BOOTSTRAP_DATASET}" == "1" ]]; then
+  # Run dataset preparation immediately when automatic bootstrap is enabled.
+  echo "Auto-bootstrapping the Q5 dataset and pretrained checkpoint..."
+  python "${SCRIPT_DIR}/bootstrap_isaid_seg.py" --repo-dir "${REPO_DIR}" --download-dataset
+else
+  echo "Skipping automatic Q5 dataset bootstrap because AUTO_BOOTSTRAP_DATASET=${AUTO_BOOTSTRAP_DATASET}."
+fi
+
+# Print the next commands for the prepared environment.
 cat <<EOF2
-YOLO11 OBB setup complete for Question 5.
+YOLO11 segmentation setup complete.
 
 You can run this setup from either directory:
   Repo root:
@@ -127,13 +168,13 @@ You can run this setup from either directory:
     bash setup_yolo11_osc.sh
 
 Next steps:
-  1) Bootstrap DOTAv1 and the reusable pretrained checkpoint:
-     ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/bootstrap_dota_obb.py" --repo-dir "${REPO_DIR}"
+  1) If you need to rerun dataset preparation manually:
+     ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/bootstrap_isaid_seg.py" --repo-dir "${REPO_DIR}" --download-dataset
 
-  2) Fine-tune on DOTAv1 and save question_5_semantic_segmentation/models/dota_obb/best.pt:
-     ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/train_dota_obb.py" --repo-dir "${REPO_DIR}"
+  2) Fine-tune on iSAID and save question_5_semantic_segmentation/models/isaid_seg/best.pt:
+     ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/train_isaid_seg.py" --repo-dir "${REPO_DIR}"
 
-  3) Run the forward-only demo on your satellite images:
+  3) Run the forward-only segmentation demo on your satellite images:
      ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/demo_yolo_segmentation.py" --repo-dir "${REPO_DIR}" --device cpu
 
 Repo-local demo input folder:
@@ -141,4 +182,6 @@ Repo-local demo input folder:
 
 Repo-local demo output folder:
   ${SCRIPT_DIR}/outputs/satellite_results
+
+Set AUTO_BOOTSTRAP_DATASET=0 if you want setup without the dataset download step.
 EOF2

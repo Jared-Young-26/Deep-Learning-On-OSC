@@ -12,8 +12,7 @@ INSTALL_FLASH_ATTN="${INSTALL_FLASH_ATTN:-0}"
 PLATFORM_SYSTEM="$(uname -s)"
 PLATFORM_MACHINE="$(uname -m)"
 
-# These pins are the smallest package set that supports the local Question 4
-# YOLOv12 demo reliably without mirroring the repo's much broader upstream extras.
+# Pin only the packages required for the local YOLOv12 workflow.
 CORE_PACKAGES=(
   "torch==2.2.2"
   "torchvision==0.17.2"
@@ -32,19 +31,20 @@ CORE_PACKAGES=(
 )
 
 if [[ "${REPO_DIR}" != /* ]]; then
-  # Allow a relative destination path, but normalize it before clone/setup continues.
+  # Resolve relative clone targets before the rest of the script uses the path.
   REPO_DIR="${PWD}/${REPO_DIR}"
 fi
 
-# Create the parent directory once so the clone target is valid even on a fresh repo.
+# Create the parent directory before cloning into it.
 mkdir -p "$(dirname "${REPO_DIR}")"
 
+# Stop immediately if the requested interpreter is unavailable.
 if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
   echo "Error: ${PYTHON_BIN} was not found. Set PYTHON_BIN to a valid Python 3.11 executable."
   exit 1
 fi
 
-# Clone once into external/ so the question directory only keeps the wrapper/demo code.
+# Reuse the existing clone when it is already present.
 if [[ -d "${REPO_DIR}/.git" ]]; then
   echo "Using existing clone at ${REPO_DIR}"
 else
@@ -54,26 +54,25 @@ fi
 
 cd "${REPO_DIR}"
 
-# Build the repo-local environment first, then layer only the packages this
-# assignment demo actually needs from the much larger upstream stack.
-# The pinned core packages are the subset this repo needs for local inference
-# without pulling in every optional export, demo, or CUDA-only extra upstream.
+# Create the repository-local virtual environment first.
 echo "Creating virtual environment at ${REPO_DIR}/.venv"
 "${PYTHON_BIN}" -m venv .venv
+
+# Activate the environment before installing packages into it.
 source .venv/bin/activate
 
+# Update the packaging tools before installing project dependencies.
 python -m pip install --upgrade pip setuptools wheel
 
-echo "Installing Question 4 YOLOv12 core dependencies for ${PLATFORM_SYSTEM} ${PLATFORM_MACHINE}"
+# Install the pinned dependency set used by the Python entrypoint.
+echo "Installing YOLOv12 core dependencies for ${PLATFORM_SYSTEM} ${PLATFORM_MACHINE}"
 pip install "${CORE_PACKAGES[@]}"
 
-# Install package from source clone while skipping upstream-only extras such as
-# the Linux flash-attn wheel, ONNX export packages, and the Gradio demo app.
+# Install the local clone in editable mode.
 pip install -e .
 
 if [[ "${INSTALL_FLASH_ATTN}" == "1" ]]; then
-  # flash-attn is optional and only worth attempting on the specific Linux CUDA
-  # environment it was built for.
+  # Install flash-attn only on supported platforms.
   if [[ "${PLATFORM_SYSTEM}" == "Linux" && "${PLATFORM_MACHINE}" == "x86_64" ]]; then
     pip install flash-attn --no-build-isolation
   else
@@ -83,7 +82,7 @@ else
   echo "Skipping flash-attn install (set INSTALL_FLASH_ATTN=1 on supported Linux x86_64 CUDA nodes)."
 fi
 
-# Finish with the exact next steps for the local demo.
+# Print the next commands for the prepared environment.
 cat <<EOF2
 YOLOv12 setup complete.
 

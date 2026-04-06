@@ -1,8 +1,8 @@
-# Question 7: TLlib Transfer Learning Object Detection
+# Transfer Learning Object Detection with TLlib
 
-This folder packages TLlib's VOC -> Clipart object-detection example into a
-repeatable assignment workflow. The wrapper is designed to support both local
-validation and a fuller OSC benchmark run.
+This module wraps TLlib's VOC-to-Clipart domain adaptation example into a
+repeatable workflow with environment checks, dataset preparation, source-only
+training, D-adapt phases, visualization, and summary generation.
 
 Upstream references:
 
@@ -11,51 +11,15 @@ Upstream references:
 - D-adapt overview:
   <https://github.com/thuml/D-adapt>
 
-## Canonical Files
+## Overview
 
-- `setup_tllib_osc.sh`
-- `run_tllib_osc.sh`
-- `demo_tllib_object_detection.py`
-
-## What Each Script Does
-
-- `setup_tllib_osc.sh`: clones TLlib, builds the repo-local environment, installs the baseline dependencies, and optionally installs Torch or Detectron2
-- `run_tllib_osc.sh`: runs the standard assignment workflow by checking the environment first and then launching the full benchmark pipeline
-- `demo_tllib_object_detection.py`: the main wrapper that supports `doctor`, dataset preparation, source-only training, D-adapt phases, visualization, report generation, and the full end-to-end pipeline
-
-## What This Question Demonstrates
-
-The intended demonstration is:
-
-1. start from TLlib's pretrained Faster R-CNN backbone
-2. train a `source-only` detector on VOC2007 + VOC2012
-3. evaluate that detector on the target domain `Clipart`
-4. run one or more D-adapt phases on the same VOC -> Clipart task
-5. compare the target-domain results before and after adaptation
-
-The important evidence is:
-
-- the TLlib environment is working on OSC
-- the source-only baseline produces target-domain metrics on Clipart
-- the adapted detector produces its own target-domain metrics on Clipart
-- you can show logs, checkpoints, summary files, and qualitative predictions
-
-## Two Workflows
-
-This folder intentionally supports two workflows:
-
-- `smoke`: local validation only. It uses tiny subsets and very short runs so you can prove the wrapper works on a laptop
-- `benchmark`: assignment-grade workflow. It uses the full VOC and Clipart datasets, benchmark output folders, and upstream-style defaults
-
-Use `smoke` to debug locally. Use `benchmark` on OSC for the actual
-demonstration.
-
-In practice, the script flow is:
-
-1. `doctor` confirms the environment and dataset roots
-2. `source-only` establishes the baseline detector
-3. `d-adapt` refines that detector phase by phase
-4. `visualize` and `report` turn the run into presentation-friendly evidence
+- `question_7_transfer_learning/setup_tllib_osc.sh` clones TLlib, creates the
+  repo-local environment, and installs the baseline dependencies.
+- `question_7_transfer_learning/run_tllib_osc.sh` runs the default end-to-end
+  helper flow: doctor check first, then the full pipeline.
+- `question_7_transfer_learning/demo_tllib_object_detection.py` exposes the
+  wrapper's individual modes: `doctor`, `prepare-datasets`, `source-only`,
+  `d-adapt`, `visualize`, `report`, and `full-pipeline`.
 
 ## Setup
 
@@ -65,36 +29,35 @@ Run from the repository root:
 bash question_7_transfer_learning/setup_tllib_osc.sh
 ```
 
-Optional:
+Optional setup flags:
 
 ```bash
 INSTALL_TORCH=1 bash question_7_transfer_learning/setup_tllib_osc.sh
 INSTALL_DETECTRON2=1 bash question_7_transfer_learning/setup_tllib_osc.sh
 ```
 
-Notes:
-
-- the real target for this question is OSC/Linux with CUDA
-- Apple Silicon macOS is useful for local validation, not for the final assignment run
-- `setup_tllib_osc.sh` installs TLlib, `timm`, and optionally Detectron2 into `external/Transfer-Learning-Library/.venv`
+The default upstream clone location is `external/Transfer-Learning-Library`.
 
 ## Doctor Check
 
-Before training, verify the environment:
+Verify the environment before training:
 
 ```bash
 python3 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor
 ```
 
-You want to see:
+The doctor mode checks the Python environment, required modules, dataset
+locations, and resolved device selection.
 
-- `detectron2` available
-- full `VOC2007`, `VOC2012`, and `Clipart` dataset paths marked `ready`
-- on OSC, `resolved_model_device: cuda`
+## Profiles
 
-## Local Validation With Smoke Profile
+- `smoke` uses small local subsets and shortened schedules for quick
+  validation.
+- `benchmark` uses the full datasets and benchmark output locations.
 
-This is the laptop-safe validation run:
+## Smoke Profile
+
+Run the full smoke pipeline:
 
 ```bash
 python3 question_7_transfer_learning/demo_tllib_object_detection.py \
@@ -103,20 +66,7 @@ python3 question_7_transfer_learning/demo_tllib_object_detection.py \
   --download-datasets
 ```
 
-What it proves:
-
-- the wrapper can download data
-- source-only training runs
-- D-adapt runs through its reduced smoke configuration
-- visualization and summary generation work
-
-What it does not prove:
-
-- meaningful transfer performance
-- assignment-grade results
-- anything close to the upstream VOC -> Clipart benchmark numbers
-
-If a previous smoke run already exists, use `--force` to rebuild it:
+Force a fresh smoke rerun:
 
 ```bash
 python3 question_7_transfer_learning/demo_tllib_object_detection.py \
@@ -126,46 +76,35 @@ python3 question_7_transfer_learning/demo_tllib_object_detection.py \
   --force
 ```
 
-## Assignment-Grade OSC Run
+## Benchmark Profile
 
-This is the intended assignment workflow on an OSC GPU node:
+Run the helper script on a prepared environment:
 
 ```bash
 bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
-What `run_tllib_osc.sh` does:
-
-1. uses the TLlib virtualenv Python directly
-2. checks whether CUDA is available
-3. runs `--mode doctor`
-4. runs the full `benchmark` pipeline with full datasets
-5. runs the default D-adapt phase sequence
-
-It refuses to run the benchmark flow if CUDA is missing unless you explicitly
-override that safeguard with `ALLOW_CPU=1`.
-
-For local CPU-only fallback, prefer smoke mode:
+Run the helper with a smoke profile instead:
 
 ```bash
-ALLOW_CPU=1 PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
+PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
-For a fresh rerun into the benchmark output folders:
+Force a fresh rerun:
 
 ```bash
 FORCE=1 bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
-To pass extra overrides through to the wrapper:
+Allow CPU execution explicitly when CUDA is unavailable:
 
 ```bash
-bash question_7_transfer_learning/run_tllib_osc.sh --n-visualizations 8
+ALLOW_CPU=1 PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
-## Direct Wrapper Command
+## Direct Wrapper Usage
 
-If you prefer to run the wrapper yourself instead of using the shell helper:
+Run the benchmark pipeline directly through the Python wrapper:
 
 ```bash
 python3 question_7_transfer_learning/demo_tllib_object_detection.py \
@@ -176,24 +115,32 @@ python3 question_7_transfer_learning/demo_tllib_object_detection.py \
   --phase-count 3
 ```
 
-Important behavior for `benchmark`:
+## Outputs
 
-- it uses the full datasets under `question_7_transfer_learning/datasets/`
-- it writes to benchmark-specific output folders, not the smoke folders
-- it does not apply the smoke-specific shortened detector settings
-- it defaults to a multi-phase D-adapt sequence for VOC -> Clipart
+Smoke runs write to:
 
-## Benchmark Artifacts
+- `question_7_transfer_learning/logs/source_only_smoke/`
+- `question_7_transfer_learning/logs/d_adapt_smoke/`
+- `question_7_transfer_learning/visualizations/voc2clipart_smoke/`
+- `question_7_transfer_learning/outputs/voc2clipart_smoke/summary.json`
+- `question_7_transfer_learning/outputs/voc2clipart_smoke/summary.md`
 
-The assignment-grade run writes here by default:
+Benchmark runs write to:
 
-- source-only logs/checkpoints: `question_7_transfer_learning/logs/source_only_benchmark/...`
-- D-adapt logs/checkpoints: `question_7_transfer_learning/logs/d_adapt_benchmark/...`
-- visualizations: `question_7_transfer_learning/visualizations/voc2clipart_benchmark/...`
-- summary:
-  - `question_7_transfer_learning/outputs/voc2clipart_benchmark/summary.json`
-  - `question_7_transfer_learning/outputs/voc2clipart_benchmark/summary.md`
+- `question_7_transfer_learning/logs/source_only_benchmark/`
+- `question_7_transfer_learning/logs/d_adapt_benchmark/`
+- `question_7_transfer_learning/visualizations/voc2clipart_benchmark/`
+- `question_7_transfer_learning/outputs/voc2clipart_benchmark/summary.json`
+- `question_7_transfer_learning/outputs/voc2clipart_benchmark/summary.md`
 
+## Environment Notes
+
+- `run_tllib_osc.sh` uses the TLlib virtualenv Python at
+  `external/Transfer-Learning-Library/.venv/bin/python` by default.
+- Benchmark runs are intended for CUDA-enabled systems; the helper refuses
+  benchmark execution on CPU unless `ALLOW_CPU=1` is set.
+- `INSTALL_TORCH`, `INSTALL_DETECTRON2`, `PROFILE`, `ALLOW_CPU`, and `FORCE`
+  are the primary environment variables exposed by the shell helpers.
 
 
 

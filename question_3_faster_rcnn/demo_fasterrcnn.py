@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run simple predictions using trzy/FasterRCNN."""
+"""Run inference with the trzy/FasterRCNN project."""
 
 from __future__ import annotations
 
@@ -39,9 +39,9 @@ DEFAULT_WEIGHTS = {
     "tf2": "fasterrcnn_tf2.h5",
 }
 
-# The upstream TF2 path expects a different entrypoint shape than this project needs.
-# This embedded script keeps the demo self-contained and preserves H5 loading on modern
-# local Python/macOS setups.
+# The upstream TF2 path expects a different entrypoint shape than this file uses.
+# This embedded script keeps the TF2 invocation self-contained and preserves H5
+# loading on current Python and Pillow environments.
 INLINE_TF2_SCRIPT = r"""
 import argparse
 import warnings
@@ -78,8 +78,8 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-# The upstream text-drawing helper is fragile on some current Pillow versions,
-# so the wrapper swaps in a simpler compatible implementation before rendering.
+# The upstream text-drawing helper is fragile on some Pillow versions, so this
+# compatibility layer installs a simpler text renderer before visualization.
 def compat_draw_text(image, text, position, color, scale=1.0, offset_lines=0):
     font = ImageFont.load_default()
     left, top, right, bottom = font.getbbox(text)
@@ -202,7 +202,7 @@ class ImageJob:
     output_relative: Path
 
 
-# The selection object lets the rest of the wrapper handle one image and a whole
+# The selection object lets the rest of the file handle one image and a whole
 # directory of images through the same execution loop.
 @dataclass(frozen=True)
 class InputSelection:
@@ -211,14 +211,16 @@ class InputSelection:
     is_directory: bool
 
 
-# These helpers choose the safest runtime path based on the machine and the weights name.
-def is_url(value: str) -> bool:
+# These helpers choose the safest runtime path from the machine and weight names.
+def is_url(value) -> bool:
+    """Return True when the value looks like a URL."""
     return value.startswith("http://") or value.startswith("https://")
 
 
-def infer_backbone(weights: str) -> str | None:
+def infer_backbone(weights) -> str | None:
     # Some upstream PyTorch checkpoints require the backbone name separately,
     # so infer it from the filename when the user does not pass --backbone.
+    """Infer the backbone name from the weight path."""
     token_map = {
         "vgg16-torch": "vgg16-torch",
         "vgg16": "vgg16",
@@ -235,13 +237,14 @@ def infer_backbone(weights: str) -> str | None:
 
 def infer_default_framework() -> str:
     # On macOS the TF2 path is the practical default because the upstream PyTorch
-    # implementation expects CUDA, while on OSC/Linux the PyTorch path is natural.
+    # implementation expects CUDA, while Linux systems commonly run the PyTorch path.
+    """Pick the default framework for this machine."""
     return "tf2" if platform.system() == "Darwin" else "pytorch"
 
 
-def resolve_python(repo_dir: Path, requested: str | None) -> str:
-    # Prefer the repo-local virtualenv so the wrapper uses the same dependencies
-    # that setup_fasterrcnn_osc.sh installed for this Faster R-CNN clone.
+def resolve_python(repo_dir, requested) -> str:
+    """Resolve the Python executable to use."""
+    # Prefer the repository-local virtual environment when it exists.
     if requested:
         return requested
 
@@ -251,9 +254,10 @@ def resolve_python(repo_dir: Path, requested: str | None) -> str:
     return sys.executable
 
 
-def pytorch_cuda_available(python_bin: str) -> bool:
-    # The upstream PyTorch demo is CUDA-only, so check that before launching a run
+def pytorch_cuda_available(python_bin) -> bool:
+    # The upstream PyTorch path is CUDA-only, so check that before launching a run
     # that would otherwise fail after all path resolution is already done.
+    """Check whether PyTorch reports CUDA support."""
     probe = (
         "import torch; "
         "print('1' if getattr(torch.cuda, 'is_available', lambda: False)() else '0')"
@@ -267,16 +271,20 @@ def pytorch_cuda_available(python_bin: str) -> bool:
     return result.returncode == 0 and result.stdout.strip() == "1"
 
 
-# Input resolution supports the three professor-demo cases: explicit local files,
-# a whole input directory, or a single remote example image URL.
-def resolve_weights(repo_dir: Path, weights: str) -> str:
+# Input resolution supports an explicit local file, a whole input directory,
+# or a single remote image URL.
+def resolve_weights(repo_dir, weights) -> str:
+    """Resolve weights."""
+    # Leave remote weight URLs unchanged.
     if is_url(weights):
         return weights
 
+    # Expand "~" and anchor relative paths to the FasterRCNN repo clone.
     candidate = Path(weights).expanduser()
     if not candidate.is_absolute():
         candidate = repo_dir / candidate
 
+    # Stop before launching inference if the checkpoint file is missing.
     if not candidate.exists():
         raise FileNotFoundError(
             f"Could not find weights file: {candidate}\n"
@@ -286,30 +294,37 @@ def resolve_weights(repo_dir: Path, weights: str) -> str:
     return str(candidate.resolve())
 
 
-def remote_cache_path(image_url: str) -> Path:
-    # Cache remote images under a deterministic hashed filename so repeated demos
-    # reuse the same downloaded file instead of redownloading every time.
+def remote_cache_path(image_url) -> Path:
+    # Cache remote images under a deterministic hashed filename so repeated runs
+    # reuse the same downloaded file instead of downloading it again.
+    """Build the cache path for a remote image."""
+    # Pull the original filename pieces from the URL path.
     parsed = urlparse(image_url)
-    filename = Path(unquote(parsed.path)).name or "demo_image.jpg"
-    stem = Path(filename).stem or "demo_image"
+    filename = Path(unquote(parsed.path)).name or "input_image.jpg"
+    stem = Path(filename).stem or "input_image"
     suffix = Path(filename).suffix or ".jpg"
+    # Add a short URL hash so different URLs with the same filename do not collide.
     cache_name = (
         f"{stem}-{hashlib.sha256(image_url.encode('utf-8')).hexdigest()[:12]}{suffix}"
     )
     return DEFAULT_DOWNLOADED_INPUT_DIR / cache_name
 
 
-def cache_remote_image(image_url: str, dry_run: bool = False) -> Path:
+def cache_remote_image(image_url, dry_run=False) -> Path:
+    """Download and cache one remote image when needed."""
     cache_path = remote_cache_path(image_url)
+    # In dry-run mode, only report the cache path that would be used.
     if dry_run:
         return cache_path.resolve()
 
     # Keep downloaded examples under inputs/downloaded so they are visible in the
     # project tree but still separate from the manually curated input images.
     cache_path.parent.mkdir(parents=True, exist_ok=True)
+    # Reuse the cached file when it already exists and is non-empty.
     if cache_path.exists() and cache_path.stat().st_size > 0:
         return cache_path.resolve()
 
+    # Download the remote image with curl so this file can capture any error text.
     curl_cmd = [
         "curl",
         "--fail",
@@ -321,6 +336,7 @@ def cache_remote_image(image_url: str, dry_run: bool = False) -> Path:
         str(cache_path),
     ]
     result = subprocess.run(curl_cmd, check=False, capture_output=True, text=True)
+    # Raise one script-level error when curl fails.
     if result.returncode != 0:
         raise RuntimeError(
             f"Failed to download input image URL: {image_url}\n"
@@ -330,14 +346,16 @@ def cache_remote_image(image_url: str, dry_run: bool = False) -> Path:
     return cache_path.resolve()
 
 
-def resolve_local_input(repo_dir: Path, image: str) -> Path:
+def resolve_local_input(repo_dir, image) -> Path:
+    """Resolve a local input path."""
     candidate = Path(image).expanduser()
     search_paths: list[Path] = []
     if candidate.is_absolute():
+        # Absolute paths need no extra search roots.
         search_paths.append(candidate)
     else:
-        # Search relative to the current shell directory, then the question folder,
-        # then the upstream repo so the wrapper is forgiving about where it is run.
+        # Search relative to the current shell directory, then this directory,
+        # then the upstream repository.
         search_paths.extend(
             [
                 Path.cwd() / candidate,
@@ -349,6 +367,7 @@ def resolve_local_input(repo_dir: Path, image: str) -> Path:
     checked: list[Path] = []
     seen: set[Path] = set()
     for path in search_paths:
+        # Resolve each candidate path before comparing or returning it.
         resolved = path.resolve()
         if resolved in seen:
             continue
@@ -357,13 +376,15 @@ def resolve_local_input(repo_dir: Path, image: str) -> Path:
         if resolved.exists():
             return resolved
 
+    # If nothing matched, show every path that was checked.
     checked_text = "\n".join(f"  - {path}" for path in checked)
     raise FileNotFoundError(
         f"Could not find input path: {image}\nChecked:\n{checked_text}"
     )
 
 
-def discover_directory_images(input_root: Path) -> list[Path]:
+def discover_directory_images(input_root) -> list[Path]:
+    """Find supported images under the input directory."""
     skip_root = (
         DEFAULT_DOWNLOADED_INPUT_DIR.resolve()
         if input_root.resolve() == DEFAULT_INPUTS_DIR.resolve()
@@ -377,6 +398,7 @@ def discover_directory_images(input_root: Path) -> list[Path]:
         if path.is_file() and path.suffix.lower() in SUPPORTED_IMAGE_SUFFIXES
         and (skip_root is None or skip_root not in path.resolve().parents)
     ]
+    # Stop if the directory tree did not yield any supported images.
     if not images:
         raise FileNotFoundError(
             "No supported image files were found under directory:\n"
@@ -387,17 +409,20 @@ def discover_directory_images(input_root: Path) -> list[Path]:
 
 
 def resolve_input_selection(
-    repo_dir: Path,
-    image: str,
-    dry_run: bool = False,
+    repo_dir,
+    image,
+    dry_run=False,
 ) -> InputSelection:
     # Convert the user-facing --image argument into one normalized list of jobs.
     # Everything downstream can then treat single-image and batch mode uniformly.
+    """Turn the user input into one normalized job selection."""
     if is_url(image):
+        # Download the URL into the local cache and build a one-job selection.
         local_image = cache_remote_image(image, dry_run=dry_run)
         parsed = urlparse(image)
         output_name = Path(unquote(parsed.path)).name or local_image.name
         output_path = Path(output_name)
+        # Make sure the output name still has an image suffix.
         if not output_path.suffix:
             output_path = output_path.with_suffix(local_image.suffix or ".jpg")
         return InputSelection(
@@ -414,6 +439,7 @@ def resolve_input_selection(
 
     input_path = resolve_local_input(repo_dir, image)
     if input_path.is_dir():
+        # Expand a directory input into one ImageJob per discovered image.
         images = discover_directory_images(input_path)
         jobs = [
             ImageJob(
@@ -429,6 +455,7 @@ def resolve_input_selection(
             is_directory=True,
         )
 
+    # Otherwise build a one-job selection for the single local file.
     return InputSelection(
         jobs=[
             ImageJob(
@@ -442,32 +469,39 @@ def resolve_input_selection(
     )
 
 
-def resolve_single_output_path(job: ImageJob, raw_output: str | None) -> Path:
+def resolve_single_output_path(job, raw_output) -> Path:
     # For single-image runs, accept either an explicit filename or a directory and
     # fill in the actual output filename from the input image name when needed.
+    """Resolve the output path for a single-image run."""
     if raw_output is None:
         return (DEFAULT_OUTPUT_DIR / job.output_relative.name).resolve()
 
     candidate = Path(raw_output).expanduser()
+    # Treat an existing directory path as an output folder.
     if candidate.exists() and candidate.is_dir():
         return (candidate / job.output_relative.name).resolve()
+    # Treat a suffix-less path as a directory-like destination too.
     if candidate.suffix == "":
         return (candidate / job.output_relative.name).resolve()
+    # Otherwise treat the value as an explicit file path.
     return candidate.resolve()
 
 
-def resolve_directory_output_root(raw_output: str | None) -> Path:
+def resolve_directory_output_root(raw_output) -> Path:
     # Directory runs must resolve to one output root because each input image keeps
     # its relative name underneath that root.
+    """Resolve the output root for a directory run."""
     if raw_output is None:
         return DEFAULT_OUTPUT_DIR.resolve()
 
     candidate = Path(raw_output).expanduser()
+    # Reject existing files as output roots for batch mode.
     if candidate.exists() and candidate.is_file():
         raise ValueError(
             "When --image is a directory, --output must be a directory path, "
             f"not a file: {candidate}"
         )
+    # Reject suffix-looking paths that do not exist yet.
     if candidate.suffix and not candidate.exists():
         raise ValueError(
             "When --image is a directory, --output must be a directory path. "
@@ -477,27 +511,32 @@ def resolve_directory_output_root(raw_output: str | None) -> Path:
 
 
 def resolve_output_paths(
-    selection: InputSelection,
-    raw_output: str | None,
-    mode: str,
+    selection,
+    raw_output,
+    mode,
 ) -> tuple[list[Path | None], str | None]:
+    """Resolve the output path for each job."""
     # Viewer mode leaves output handling to the upstream GUI/image viewer path.
+    # Viewer mode does not write file outputs managed by this script.
     if mode != "to-file":
         return [None] * len(selection.jobs), None
 
     if selection.is_directory:
+        # Batch mode maps each job's relative path under one output root.
         output_root = resolve_directory_output_root(raw_output)
         return (
             [(output_root / job.output_relative).resolve() for job in selection.jobs],
             str(output_root),
         )
 
+    # Single-image mode resolves exactly one output path.
     output_path = resolve_single_output_path(selection.jobs[0], raw_output)
     return ([output_path], str(output_path))
 
 
-# The public CLI stays small while the wrapper hides the upstream command details.
+# The public CLI stays small while this file hides the upstream command details.
 def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser."""
     parser = argparse.ArgumentParser(
         description="Simple inference runner for the trzy/FasterRCNN project."
     )
@@ -570,15 +609,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def format_run_summary(
-    framework: str,
-    weights: str,
-    mode: str,
-    selection: InputSelection,
-    output_label: str | None,
+    framework,
+    weights,
+    mode,
+    selection,
+    output_label,
 ) -> str:
-    # Print a compact summary before execution so the high-level plan of the run
-    # is visible without having to read the full subprocess command.
+    # Print a compact summary before execution so the high-level plan is visible
+    # without reading the full subprocess command.
+    """Build the short run summary text."""
     if selection.is_directory:
+        # Describe the batch run in a compact multi-line block.
         lines = [
             "Running Faster R-CNN demo batch",
             f"  framework: {framework}",
@@ -591,6 +632,7 @@ def format_run_summary(
             lines.append(f"  output root: {output_label}")
         return "\n".join(lines)
 
+    # Otherwise describe the single-image run.
     lines = [
         "Running Faster R-CNN demo",
         f"  framework: {framework}",
@@ -603,17 +645,18 @@ def format_run_summary(
     return "\n".join(lines)
 
 
-# Command construction is where this wrapper translates one stable local interface
-# into whichever upstream Faster R-CNN implementation is actually being used.
+# Command construction translates one stable local interface into the selected
+# upstream Faster R-CNN implementation.
 def build_command(
-    framework: str,
-    python_bin: str,
-    weights: str,
-    backbone: str | None,
-    job: ImageJob,
-    mode: str,
-    output_path: Path | None,
+    framework,
+    python_bin,
+    weights,
+    backbone,
+    job,
+    mode,
+    output_path,
 ) -> list[str]:
+    """Build the upstream inference command."""
     if framework == "pytorch":
         # The PyTorch repo exposes a module entrypoint and encodes the prediction
         # mode directly in the CLI flag we pass.
@@ -623,8 +666,10 @@ def build_command(
             "pytorch.FasterRCNN",
             f"--load-from={weights}",
         ]
+        # Pass the backbone only when one was resolved.
         if backbone:
             command.append(f"--backbone={backbone}")
+        # Choose the upstream prediction flag that matches the requested mode.
         if mode == "to-file":
             command.append(f"--predict-to-file={job.local_image}")
         else:
@@ -645,23 +690,30 @@ def build_command(
         "--output",
         tf2_output,
     ]
+    # Viewer mode adds the flag that opens the rendered image window.
     if mode == "viewer":
         command.append("--show-image")
     return command
 
 
-def print_command(command: list[str], index: int, total: int) -> None:
+def print_command(command, index, total) -> None:
+    """Print the command before running it."""
+    # Prefix batch commands with their position in the run.
     label = "Running:" if total == 1 else f"Running [{index}/{total}]:"
     print(label, " ".join(shlex.quote(part) for part in command))
 
 
-def print_batch_item(job: ImageJob, output_path: Path | None, index: int, total: int) -> None:
+def print_batch_item(job, output_path, index, total) -> None:
+    """Print the batch item being processed."""
+    # Print the input image currently being processed.
     print(f"[{index}/{total}] {job.display_input}")
     if output_path is not None:
+        # Print the expected output location for this image.
         print(f"      -> {output_path}")
 
 
 def main() -> int:
+    """Run the main CLI flow."""
     args = build_parser().parse_args()
     repo_dir = Path(args.repo_dir).expanduser().resolve()
 
@@ -683,13 +735,14 @@ def main() -> int:
             "PyTorch path on a CUDA-enabled system."
         )
 
-    # Resolve the demo inputs once so the execution loop can stay simple.
-    # At this point the wrapper knows which framework, weights, inputs, and outputs
+    # Resolve the inputs once so the execution loop can stay simple.
+    # At this point the file knows which framework, weights, inputs, and outputs
     # will be used before it launches any upstream inference code.
     weights = args.weights or DEFAULT_WEIGHTS[args.framework]
     resolved_weights = resolve_weights(repo_dir, weights)
     selection = resolve_input_selection(repo_dir, args.image, dry_run=args.dry_run)
 
+    # Reject viewer mode for directory batches because the upstream tools show one image at a time.
     if selection.is_directory and args.mode == "viewer":
         raise ValueError(
             "--mode viewer only supports a single image input. "
@@ -703,7 +756,7 @@ def main() -> int:
     # The upstream launcher wants a backbone name in addition to the checkpoint
     # path, so infer it once here instead of asking the user to duplicate it.
 
-    # Print one high-level summary up front so the run is easy to narrate live.
+    # Print one high-level summary before any subprocesses start.
     if not args.verbose_command and not args.dry_run:
         print(
             format_run_summary(
@@ -734,6 +787,7 @@ def main() -> int:
         if args.verbose_command or args.dry_run:
             print_command(command, index=index, total=total_jobs)
         elif total_jobs > 1:
+            # In quiet batch mode, print just the current image and destination.
             print_batch_item(job, output_path, index=index, total=total_jobs)
 
         if args.dry_run:
@@ -744,18 +798,19 @@ def main() -> int:
         if output_path is not None:
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # The heavy lifting stays upstream; this wrapper's job is to make sure
+        # The heavy lifting stays upstream; this file's job is to make sure
         # every run enters with consistent paths, weights, and save behavior.
         subprocess.run(command, cwd=repo_dir, check=True)
 
         # The PyTorch implementation always writes predictions.png in the repo,
-        # so the wrapper copies that canonical artifact into this question folder.
+        # so this file copies that canonical artifact into the local output path.
         if output_path is None:
             continue
 
         if args.framework == "pytorch":
             generated = repo_dir / "predictions.png"
             if generated.exists():
+                # Copy the canonical upstream saved image to the resolved destination.
                 shutil.copy2(generated, output_path)
             else:
                 # If the canonical artifact is missing, the subprocess likely ran

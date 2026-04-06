@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Demonstrate horizontal, vertical, and diagonal convolution filters."""
+"""Run the directional filters on a synthetic test image."""
 
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
-from typing import Dict, List
 
 from convolution_filter_library import (
     apply_all_directional_filters,
@@ -17,47 +16,55 @@ from convolution_filter_library import (
 QUESTION_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_PATH = QUESTION_DIR / "outputs" / "convolution_filter_demo.json"
 
-Matrix = List[List[float]]
+Matrix = list[list[float]]
 
 
-# The synthetic image deliberately contains one strong structure in each supported
-# direction so the filter responses are easy to justify by inspection.
-def build_synthetic_image(size: int, amplitude: float = 255.0) -> Matrix:
+def build_synthetic_image(size, amplitude=255.0) -> Matrix:
+    """Build a synthetic image containing six oriented structures."""
+    # Reject sizes that cannot place the center-aligned patterns cleanly.
     if size < 7 or size % 2 == 0:
         raise ValueError("Size must be odd and >= 7.")
 
-    image: Matrix = [[0.0 for _ in range(size)] for _ in range(size)]
+    # Start from an all-zero image.
+    image = [[0.0 for _ in range(size)] for _ in range(size)]
     center = size // 2
 
-    # Horizontal and vertical strokes.
+    # Draw the horizontal stroke through the center row.
     for c in range(1, size - 1):
         image[center][c] = amplitude
+
+    # Draw the vertical stroke through the center column.
     for r in range(1, size - 1):
         image[r][center] = amplitude
 
-    # Diagonal strokes.
+    # Draw both diagonals so every kernel sees one matching structure.
     for i in range(1, size - 1):
         image[i][i] = amplitude
         image[i][size - 1 - i] = amplitude
 
+    # Return the completed synthetic image matrix.
     return image
 
 
-def format_matrix(matrix: Matrix, width: int = 6) -> str:
-    # Print the matrices in aligned columns so the directional structure is easy to read.
+def format_matrix(matrix, width=6) -> str:
+    """Format one matrix as aligned text."""
+    # Format each row to a fixed width so the grid stays readable.
     lines = []
     for row in matrix:
+        # Format one row of numeric values into aligned columns.
         lines.append(" ".join(f"{int(round(value)):>{width}d}" for value in row))
     return "\n".join(lines)
 
 
-def summarize_responses(responses: Dict[str, Matrix]) -> Dict[str, Dict[str, float]]:
-    # Collapse each full response map into a compact set of comparison metrics.
+def summarize_responses(responses) -> dict[str, dict[str, float]]:
+    """Reduce each full response map to summary metrics."""
+    # Reuse the shared summary helper for each named response matrix.
+    # Run the shared stats helper on each named response matrix.
     return {name: matrix_stats(matrix) for name, matrix in responses.items()}
 
 
-# The CLI keeps the demo lightweight: generate a pattern, run filters, and save one report.
 def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser."""
     parser = argparse.ArgumentParser(
         description=(
             "Demonstrate directional convolution filters on a synthetic image "
@@ -80,11 +87,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """Run the synthetic-image filter comparison."""
+    # Parse the CLI configuration once at startup.
     args = build_parser().parse_args()
+
+    # Build the input image before deriving kernels or responses.
     image = build_synthetic_image(size=args.size, amplitude=args.amplitude)
 
-    # Build the directional kernels once, then compare how strongly each one fires
-    # on the same toy image.
+    # Derive the kernels and evaluate them against the same input matrix.
     kernels = get_directional_kernels(normalize=False)
     responses = apply_all_directional_filters(image, normalize_kernels=False)
     stats = summarize_responses(responses)
@@ -96,7 +106,7 @@ def main() -> int:
     print("Directional kernels:")
     for name, kernel in kernels.items():
         # Showing the kernel values directly makes it easier to justify why a
-        # filter should respond most strongly to one orientation and not another.
+        # filter responds strongly to one orientation and weakly to the others.
         print(f"\n[{name}]")
         print(format_matrix(kernel, width=3))
 
@@ -110,15 +120,18 @@ def main() -> int:
             f"max={values['max']:.1f}"
         )
 
+    # Record the same kernel and response information in a structured report.
     output = {
         "input_size": args.size,
         "input_amplitude": args.amplitude,
         "kernels": kernels,
         "response_stats": stats,
     }
-    # Save the structured report so the printed explanation and the JSON artifact agree.
+    # Save the same information that was printed to the terminal.
     output_path = Path(args.save_json).expanduser().resolve()
+    # Create the output folder before writing the JSON file.
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    # Write the kernels and summary stats as formatted JSON.
     output_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
     print(f"\nSaved JSON report to: {output_path}")
 

@@ -1,100 +1,78 @@
-# Question 3: Faster R-CNN on OSC
+# Faster R-CNN Object Detection
 
-This folder wraps the upstream [trzy/FasterRCNN](https://github.com/trzy/FasterRCNN)
-project into a simpler assignment workflow. The upstream repo and pretrained
-weights live under `external/`, while this folder keeps the assignment-facing
-commands, sample inputs, and saved outputs.
+This module runs image object detection with a local clone of
+[trzy/FasterRCNN](https://github.com/trzy/FasterRCNN). The wrapper accepts a
+local file, an image URL, or a directory of images and saves annotated outputs
+under this module.
 
-## Canonical Files
+## Overview
 
-- `setup_fasterrcnn_osc.sh`
-- `download_models_fasterrcnn.sh`
-- `demo_fasterrcnn.py`
-- `inputs/`
-- `outputs/`
-
-## What Each Script Does
-
-- `setup_fasterrcnn_osc.sh`: clones the upstream repo into `external/FasterRCNN`, builds a repo-local virtual environment, and installs the practical runtime for the current machine
-- `download_models_fasterrcnn.sh`: downloads the backbone and detector checkpoints into the upstream repo where both the wrapper and upstream code expect them
-- `demo_fasterrcnn.py`: resolves local files, URLs, or directories of images, launches the appropriate Faster R-CNN path, and saves annotated outputs into this folder
-
-## Canonical Workflow
-
-Run Question 3 in this order:
-
-1. set up the upstream repo and environment
-2. download the pretrained weights
-3. run the demo on one image, one URL, or a directory of images
+- `question_3_faster_rcnn/setup_fasterrcnn_osc.sh` clones the upstream project
+  into `external/FasterRCNN` and creates a repo-local virtual environment.
+- `question_3_faster_rcnn/download_models_fasterrcnn.sh` downloads the supported
+  TF2 and PyTorch checkpoints into the upstream clone.
+- `question_3_faster_rcnn/demo_fasterrcnn.py` runs inference and writes
+  annotated images to `question_3_faster_rcnn/outputs/` by default.
 
 ## Setup
 
-Run from this folder:
+Run from the repository root:
 
 ```bash
-bash setup_fasterrcnn_osc.sh
+bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh
+bash question_3_faster_rcnn/download_models_fasterrcnn.sh
 ```
 
-By default, the upstream clone is created in `../external/FasterRCNN`.
+The default upstream clone location is `external/FasterRCNN`.
 
-Then activate the environment and download the checkpoints:
+## Run
+
+Default run on the built-in sample URL:
 
 ```bash
-source ../external/FasterRCNN/.venv/bin/activate
-bash download_models_fasterrcnn.sh
+python3 question_3_faster_rcnn/demo_fasterrcnn.py --mode to-file
 ```
 
-## Demo Commands
-
-Single URL image:
+Run on one local image:
 
 ```bash
-python3 demo_fasterrcnn.py \
-  --framework tf2 \
-  --weights fasterrcnn_tf2.h5 \
-  --image http://trzy.org/files/fasterrcnn/gary.jpg \
+python3 question_3_faster_rcnn/demo_fasterrcnn.py \
+  --image question_3_faster_rcnn/inputs/000000001000.jpg \
   --mode to-file
 ```
 
-Single local image:
+Run on a directory recursively:
 
 ```bash
-python3 demo_fasterrcnn.py \
-  --framework tf2 \
-  --weights fasterrcnn_tf2.h5 \
-  --image inputs/000000001000.jpg \
+python3 question_3_faster_rcnn/demo_fasterrcnn.py \
+  --image question_3_faster_rcnn/inputs \
   --mode to-file
 ```
 
-Recursive directory batch:
+Select a framework explicitly when needed:
 
 ```bash
-python3 demo_fasterrcnn.py \
+python3 question_3_faster_rcnn/demo_fasterrcnn.py \
   --framework tf2 \
-  --weights fasterrcnn_tf2.h5 \
-  --image inputs \
   --mode to-file
 ```
 
-## Input and Output Behavior
+## Inputs and Outputs
 
-- If `--image` is a URL, the wrapper downloads it into `inputs/downloaded/` first
-- If `--image` is one local file and `--output` is omitted, the wrapper writes `outputs/<input filename>`
-- If `--image` is a directory, the wrapper scans recursively and mirrors the relative folder structure under `outputs/`
-- Batch directory mode skips `inputs/downloaded/` so cached URL examples do not mix with manual sample images
-- `--mode viewer` only supports a single image input
+- `--image` accepts a local image path, an image URL, or a directory processed
+  recursively.
+- URL inputs are downloaded into
+  `question_3_faster_rcnn/inputs/downloaded/`.
+- Outputs are written to `question_3_faster_rcnn/outputs/` unless `--output` is
+  provided.
+- Directory input mirrors the relative folder structure under the output
+  directory.
+- `--output` can be used for a single output file, a single-image output
+  directory, or a batch output root.
 
-Example:
+## Environment Notes
 
-- `inputs/example/cars.jpg` becomes `outputs/example/cars.jpg`
-
-## Practical Notes
-
-- `--mode to-file` is the best choice on headless OSC nodes
-- On macOS, the practical local path is `--framework tf2`
-- On CUDA-backed Linux/OSC systems, the PyTorch path is also available
-- On macOS, use `download_models_fasterrcnn.sh` instead of the upstream `download_models.sh` because the upstream script assumes `wget`
-- If your OSC environment requires modules, load Python first
-
-
+- The wrapper defaults to `tf2` on macOS and `pytorch` on other platforms.
+- `--mode to-file` is the practical choice for headless systems.
+- `--mode viewer` opens an image window and is intended for GUI environments.
 

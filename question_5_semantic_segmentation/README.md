@@ -1,112 +1,120 @@
-# Question 5: DOTA Satellite Detection MVP
+# Semantic Segmentation with YOLO11 and iSAID
 
-Question 5 is implemented as a small, reproducible DOTA oriented-object
-detection pipeline built around YOLO11 OBB.
+This module builds a semantic segmentation pipeline for aerial imagery using
+YOLO11 segmentation and the iSAID dataset. The workflow prepares a repo-local
+Ultralytics environment, bootstraps the dataset into YOLO segmentation format,
+fine-tunes the model, and exports per-pixel semantic outputs for input images.
 
-The intended workflow is:
+## Overview
 
-1. prepare the Ultralytics environment
-2. bootstrap the dataset and reusable pretrained OBB checkpoint
-3. fine-tune once on OSC
-4. run forward-only demos on satellite images
-
-## Canonical Files
-
-- `setup_yolo11_osc.sh`
-- `bootstrap_dota_obb.py`
-- `train_dota_obb.py`
-- `demo_yolo_segmentation.py`
-- `q5_obb_common.py`
-- `inputs/satellite_images/PUT_SATELLITE_IMAGES_HERE.txt`
-
-Everything else is generated on demand. Datasets, checkpoints, and demo outputs
-are intentionally not part of the committed structure.
-
-## What Each Script Does
-
-- `setup_yolo11_osc.sh`: prepares the repo-local Ultralytics environment used by every other Question 5 script
-- `bootstrap_dota_obb.py`: downloads DOTAv1 plus the pretrained OBB checkpoint, extracts the raw dataset, tiles it into the split layout, and writes the dataset YAML
-- `train_dota_obb.py`: fine-tunes the OBB detector and copies the best checkpoint into one stable alias path
-- `demo_yolo_segmentation.py`: runs forward-only inference on satellite images, turns OBB detections into overlays, masks, and JSON summaries, and writes an aggregate CSV for batch runs
-- `q5_obb_common.py`: shared path, import, model-resolution, download, and dataset helpers used by the other three scripts
+- `question_5_semantic_segmentation/setup_yolo11_osc.sh` prepares the
+  repo-local Ultralytics environment and can bootstrap the dataset
+  automatically.
+- `question_5_semantic_segmentation/bootstrap_isaid_seg.py` normalizes the raw
+  iSAID layout, converts COCO annotations into YOLO segmentation labels,
+  downloads `yolo11s-seg.pt`, and writes the dataset YAML.
+- `question_5_semantic_segmentation/train_isaid_seg.py` fine-tunes the
+  segmentation model and copies the reusable checkpoint to
+  `question_5_semantic_segmentation/models/isaid_seg/best.pt`.
+- `question_5_semantic_segmentation/demo_yolo_segmentation.py` runs inference on
+  satellite images and writes overlays, class maps, colorized masks, per-image
+  summaries, and a batch index CSV.
 
 ## Setup
 
-From the repo root:
+Run from the repository root:
 
 ```bash
 bash question_5_semantic_segmentation/setup_yolo11_osc.sh
 ```
 
-From inside `question_5_semantic_segmentation`:
+By default, setup also bootstraps the dataset and downloads the pretrained
+`yolo11s-seg.pt` checkpoint. To refresh only the Python environment and skip the
+dataset step:
 
 ```bash
-bash setup_yolo11_osc.sh
+AUTO_BOOTSTRAP_DATASET=0 bash question_5_semantic_segmentation/setup_yolo11_osc.sh
 ```
 
-## Bootstrap
+The default upstream clone location is `external/ultralytics`.
 
-From the repo root:
+## Dataset Bootstrap
+
+Run the bootstrap script directly when you want to repair or refresh dataset
+preparation:
 
 ```bash
 external/ultralytics/.venv/bin/python \
-  question_5_semantic_segmentation/bootstrap_dota_obb.py \
+  question_5_semantic_segmentation/bootstrap_isaid_seg.py \
   --repo-dir external/ultralytics
 ```
 
-From inside `question_5_semantic_segmentation`:
-
-```bash
-../external/ultralytics/.venv/bin/python \
-  bootstrap_dota_obb.py \
-  --repo-dir ../external/ultralytics
-```
-
-This generates:
-
-- `question_5_semantic_segmentation/datasets/`
-- `question_5_semantic_segmentation/datasets/DOTAv1-split.yaml`
-- `question_5_semantic_segmentation/models/pretrained/yolo11s-obb.pt`
-
-## Train on OSC
-
-From the repo root:
+If the raw dataset is not present yet, let the script download it:
 
 ```bash
 external/ultralytics/.venv/bin/python \
-  question_5_semantic_segmentation/train_dota_obb.py \
+  question_5_semantic_segmentation/bootstrap_isaid_seg.py \
+  --repo-dir external/ultralytics \
+  --download-dataset
+```
+
+Bootstrap writes these key artifacts:
+
+- `question_5_semantic_segmentation/datasets/isaid_seg.yaml`
+- `question_5_semantic_segmentation/datasets/raw/isaid/labels/train/`
+- `question_5_semantic_segmentation/datasets/raw/isaid/labels/val/`
+- `question_5_semantic_segmentation/models/pretrained/yolo11s-seg.pt`
+
+The normalized raw dataset layout is:
+
+```text
+question_5_semantic_segmentation/datasets/raw/isaid/
+  images/
+    train/
+    val/
+  annotations/
+    instances_train.json
+    instances_val.json
+```
+
+## Training
+
+Run training from the repository root:
+
+```bash
+external/ultralytics/.venv/bin/python \
+  question_5_semantic_segmentation/train_isaid_seg.py \
   --repo-dir external/ultralytics \
   --device 0
 ```
 
-From inside `question_5_semantic_segmentation`:
+Default training settings are:
+
+- model: `yolo11s-seg.pt`
+- epochs: `50`
+- imgsz: `1024`
+- batch: `4`
+- workers: `4`
+
+The reusable checkpoint alias is written to:
+
+- `question_5_semantic_segmentation/models/isaid_seg/best.pt`
+
+For a short functional CPU check, reduce the workload explicitly:
 
 ```bash
-../external/ultralytics/.venv/bin/python \
-  train_dota_obb.py \
-  --repo-dir ../external/ultralytics \
-  --device 0
+external/ultralytics/.venv/bin/python \
+  question_5_semantic_segmentation/train_isaid_seg.py \
+  --repo-dir external/ultralytics \
+  --device cpu \
+  --epochs 1 \
+  --batch 1 \
+  --workers 0
 ```
 
-The training script writes the reusable alias checkpoint to:
+## Inference
 
-- `question_5_semantic_segmentation/models/dota_obb/best.pt`
-
-## Forward-Only Demo
-
-Put your satellite images in:
-
-- `question_5_semantic_segmentation/inputs/satellite_images`
-
-For the published repo, this folder keeps only a small curated sample set. Add
-your own local images there when running new demos.
-
-The demo never trains implicitly. It resolves models in this order:
-
-1. `question_5_semantic_segmentation/models/dota_obb/best.pt`
-2. `question_5_semantic_segmentation/models/pretrained/yolo11s-obb.pt`
-
-From the repo root:
+Run the batch demo on the default input directory:
 
 ```bash
 external/ultralytics/.venv/bin/python \
@@ -115,32 +123,45 @@ external/ultralytics/.venv/bin/python \
   --device cpu
 ```
 
-From inside `question_5_semantic_segmentation`:
+Run on one specific image:
 
 ```bash
-../external/ultralytics/.venv/bin/python \
-  demo_yolo_segmentation.py \
-  --repo-dir ../external/ultralytics \
+external/ultralytics/.venv/bin/python \
+  question_5_semantic_segmentation/demo_yolo_segmentation.py \
+  --repo-dir external/ultralytics \
+  --source question_5_semantic_segmentation/inputs/satellite_images/P0362.png \
   --device cpu
 ```
 
-Use `--device cpu` locally on a Mac. Use `--device 0` on OSC GPU nodes.
-Omit `--keep-classes` to detect all DOTAv1 classes. Add it only when you want
-to filter to a smaller subset.
+Limit output to selected classes when needed:
 
-## Input and Output Layout
+```bash
+external/ultralytics/.venv/bin/python \
+  question_5_semantic_segmentation/demo_yolo_segmentation.py \
+  --repo-dir external/ultralytics \
+  --keep-classes "ship,small vehicle" \
+  --device cpu
+```
 
-Input images go here:
+Model resolution order is:
 
-- `question_5_semantic_segmentation/inputs/satellite_images`
+1. `question_5_semantic_segmentation/models/isaid_seg/best.pt`
+2. `question_5_semantic_segmentation/models/pretrained/yolo11s-seg.pt`
 
-The batch demo writes results here:
+## Inputs and Outputs
 
-- `question_5_semantic_segmentation/outputs/satellite_results`
+Input images go in:
 
-Each image gets its own folder containing:
+- `question_5_semantic_segmentation/inputs/satellite_images/`
+
+Batch outputs are written to:
+
+- `question_5_semantic_segmentation/outputs/satellite_results/`
+
+Each image gets its own output directory containing:
 
 - `overlay.<original suffix>`
+- `class_ids.png`
 - `mask.png`
 - `summary.json`
 
@@ -151,43 +172,23 @@ The batch run also writes:
 Example:
 
 ```text
-inputs/satellite_images/
-  region_a/
-    P0000.png
-
-outputs/satellite_results/
+question_5_semantic_segmentation/outputs/satellite_results/
   index.csv
-  region_a/
-    P0000/
-      overlay.png
-      mask.png
-      summary.json
+  P0362/
+    overlay.png
+    class_ids.png
+    mask.png
+    summary.json
 ```
 
-## DOTA Classes
+`class_ids.png` is a one-channel semantic class map where `0` is background and
+positive values correspond to the model's class ids. `mask.png` is the
+colorized semantic mask, and `overlay.*` blends that mask with the original
+image.
 
-The pipeline is aligned to DOTAv1 classes:
+## Environment Notes
 
-- `plane`
-- `ship`
-- `storage tank`
-- `baseball diamond`
-- `tennis court`
-- `basketball court`
-- `ground track field`
-- `harbor`
-- `bridge`
-- `large vehicle`
-- `small vehicle`
-- `helicopter`
-- `roundabout`
-- `soccer ball field`
-- `swimming pool`
-
-Notes:
-
-- `small vehicle` and `large vehicle` are the correct DOTA vehicle classes
-- the pipeline does not guess exact `car` or `truck` labels
-- `building` is not a stock DOTAv1 class
-
-
+- The first bootstrap run downloads several gigabytes of dataset assets and can
+  take time to extract and convert.
+- Setup and inference work on CPU. Full training is best on a CUDA-capable
+  system with `--device 0`.

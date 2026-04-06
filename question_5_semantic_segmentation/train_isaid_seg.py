@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fine-tune YOLO11 OBB on the prepared DOTA dataset and save a reusable checkpoint."""
+"""Train a YOLO11 segmentation model on the prepared iSAID dataset."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ import shutil
 import sys
 from pathlib import Path
 
-from q5_obb_common import (
-    DEFAULT_DOTA_YAML,
+from q5_seg_common import (
+    DEFAULT_DATASET_YAML,
     DEFAULT_FINETUNED_MODEL,
     DEFAULT_PRETRAINED_MODEL,
     DEFAULT_REPO_DIR,
     DEFAULT_TRAIN_PROJECT_DIR,
-    ensure_ultralytics_import,
     ensure_parent,
+    ensure_ultralytics_import,
     ensure_ultralytics_repo,
     is_url,
     maybe_reexec_with_repo_python,
@@ -24,15 +24,15 @@ from q5_obb_common import (
     resolve_repo_dir,
 )
 
-REEXEC_MARKER = "Q5_OBB_TRAIN_INNER"
+REEXEC_MARKER = "Q5_SEG_TRAIN_INNER"
 
 
-# Training produces the one reusable checkpoint that the demo script will prefer later.
 def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser."""
     parser = argparse.ArgumentParser(
         description=(
-            "Fine-tune yolo11s-obb on the prepared DOTA dataset and store "
-            "question_5_semantic_segmentation/models/dota_obb/best.pt for later demo reuse."
+            "Fine-tune yolo11s-seg on the prepared iSAID dataset and store "
+            "question_5_semantic_segmentation/models/isaid_seg/best.pt for later demo reuse."
         )
     )
     parser.add_argument(
@@ -48,26 +48,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model",
         default=str(DEFAULT_PRETRAINED_MODEL),
-        help="Starting checkpoint. Defaults to the repo-local pretrained yolo11s-obb.pt.",
+        help="Starting checkpoint. Defaults to the repo-local pretrained yolo11s-seg.pt.",
     )
     parser.add_argument(
         "--data",
-        default=str(DEFAULT_DOTA_YAML),
-        help="Dataset YAML. Defaults to the repo-local DOTAv1-split.yaml.",
+        default=str(DEFAULT_DATASET_YAML),
+        help="Dataset YAML. Defaults to the repo-local iSAID segmentation YAML.",
     )
-    parser.add_argument("--epochs", type=int, default=100, help="Number of training epochs.")
+    parser.add_argument("--epochs", type=int, default=50, help="Number of training epochs.")
     parser.add_argument("--imgsz", type=int, default=1024, help="Training image size.")
-    parser.add_argument("--batch", type=int, default=8, help="Batch size.")
+    parser.add_argument("--batch", type=int, default=4, help="Batch size.")
     parser.add_argument("--workers", type=int, default=4, help="Data loader workers.")
     parser.add_argument("--device", default="", help="Device string such as 0, 0,1, or cpu.")
     parser.add_argument(
         "--project",
         default=str(DEFAULT_TRAIN_PROJECT_DIR),
-        help="Ultralytics run root. Defaults to question_5_semantic_segmentation/runs/obb/train.",
+        help="Ultralytics run root. Defaults to question_5_semantic_segmentation/runs/segment/train.",
     )
     parser.add_argument(
         "--name",
-        default="dota_yolo11s_obb",
+        default="isaid_yolo11s_seg",
         help="Run name under the training project directory.",
     )
     parser.add_argument(
@@ -84,36 +84,37 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def resolve_training_model(raw_model: str) -> str:
-    # Accept URLs, absolute paths, or question-local model aliases, but fail early
-    # if the starting checkpoint the user asked for does not actually exist.
+def resolve_training_model(raw_model) -> str:
+    """Resolve the model input used to start training."""
+    # Resolve the user input into the exact model value YOLO should load.
     model_value = resolve_model_argument(raw_model)
     if is_url(model_value):
         return model_value
 
+    # Fail early if the local checkpoint path does not exist.
     model_path = Path(model_value).expanduser()
     if model_path.is_absolute() and not model_path.exists():
         raise FileNotFoundError(
             f"Starting checkpoint does not exist: {model_path}. "
-            "Run bootstrap_dota_obb.py first or pass a different --model."
+            "Run bootstrap_isaid_seg.py first or pass a different --model."
         )
     return model_value
 
 
 def main() -> int:
+    """Run the segmentation training flow."""
     args = build_parser().parse_args()
 
-    # Re-enter through the repo-local interpreter so the training run uses the
-    # exact Ultralytics environment prepared by setup_yolo11_osc.sh.
+    # Resolve the upstream repo path before touching the environment.
     repo_dir = ensure_ultralytics_repo(resolve_repo_dir(args.repo_dir))
-    maybe_reexec_with_repo_python(repo_dir, args.python, REEXEC_MARKER)
-    ensure_ultralytics_import(repo_dir)
 
+    # Resolve the user-facing paths once so later steps reuse the same values.
     resolved_model = resolve_model_argument(args.model) if args.dry_run else resolve_training_model(args.model)
     data_yaml = resolve_question_path(args.data)
     project_dir = resolve_question_path(args.project)
     output_model = resolve_question_path(args.output_model)
 
+    # Dry-run mode stops after printing the resolved paths.
     if args.dry_run:
         print(f"Repo:          {repo_dir}")
         print(f"Model:         {resolved_model}")
@@ -123,23 +124,29 @@ def main() -> int:
         print(f"Output alias:  {output_model}")
         return 0
 
+    # Re-exec inside the repository-local environment if the current Python differs.
+    maybe_reexec_with_repo_python(repo_dir, args.python, REEXEC_MARKER)
+
+    # Import Ultralytics only after the correct environment is active.
+    ensure_ultralytics_import(repo_dir)
+
+    # Stop before training if the prepared dataset YAML is missing.
     if not data_yaml.exists():
         raise FileNotFoundError(
-            f"Dataset YAML does not exist: {data_yaml}. Run bootstrap_dota_obb.py first."
+            f"Dataset YAML does not exist: {data_yaml}. Run bootstrap_isaid_seg.py first."
         )
 
     from ultralytics import YOLO
 
-    # Train from the chosen starting checkpoint, then copy the best resulting
-    # weights into a stable alias path for later inference reuse.
-    print(f"Starting OBB training from {resolved_model}")
+    print(f"Starting segmentation training from {resolved_model}")
     print(f"Dataset YAML: {data_yaml}")
     print(f"Runs root:    {project_dir}")
 
+    # Load the starting checkpoint into a YOLO model object.
     model = YOLO(resolved_model)
-    # The wrapper only sets the training knobs that matter for the assignment;
-    # Ultralytics still owns the actual optimization loop and checkpoint writing.
-    train_kwargs: dict[str, object] = {
+
+    # Build the keyword arguments passed into the Ultralytics trainer.
+    train_kwargs = {
         "data": str(data_yaml),
         "epochs": args.epochs,
         "imgsz": args.imgsz,
@@ -148,24 +155,26 @@ def main() -> int:
         "project": str(project_dir),
         "name": args.name,
         "exist_ok": args.exist_ok,
-        "task": "obb",
+        "task": "segment",
     }
+    # Pass the device only when the caller explicitly set one.
     if args.device:
         train_kwargs["device"] = args.device
 
-    # The actual optimization loop lives inside Ultralytics; this wrapper mainly
-    # standardizes the inputs and preserves the best checkpoint under a stable name.
+    # Launch training with the resolved configuration.
     model.train(**train_kwargs)
 
-    # Preserve the best checkpoint under one predictable alias so the demo script
-    # does not need to guess which run directory produced the final weights.
+    # Prefer the best checkpoint, then fall back to the last checkpoint.
     best_checkpoint = model.trainer.best if model.trainer.best.exists() else model.trainer.last
+    # Stop if training finished without leaving either checkpoint behind.
     if not best_checkpoint.exists():
         raise FileNotFoundError(
             f"Training completed but no checkpoint was found under {model.trainer.save_dir / 'weights'}."
         )
 
+    # Copy the selected checkpoint into the stable alias path.
     ensure_parent(output_model)
+    # Copy the chosen checkpoint to the stable reusable location.
     shutil.copy2(best_checkpoint, output_model)
 
     print("")
@@ -180,8 +189,10 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except KeyboardInterrupt:
+        # Convert Ctrl+C into the standard shell exit code.
         print("Interrupted.", file=sys.stderr)
         raise SystemExit(130)
     except Exception as exc:
+        # Print the final error as a one-line CLI message.
         print(f"Error: {exc}", file=sys.stderr)
         raise SystemExit(1)

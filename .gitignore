@@ -13,9 +13,12 @@ question_3_faster_rcnn/inputs/downloaded/
 # Q4 keeps curated sample media, but not raw YOLO run directories.
 question_4_yolo11_yolov12/runs/
 
-# Q5 keeps only a small curated input set plus the placeholder note.
+# Q5 keeps the tracked scripts and curated sample inputs, but not local
+# datasets, checkpoints, run folders, or generated demo outputs.
 question_5_semantic_segmentation/datasets/
 question_5_semantic_segmentation/models/
+question_5_semantic_segmentation/runs/
+question_5_semantic_segmentation/outputs/
 
 
 # Q7 training assets stay local, but the written summaries can be tracked.

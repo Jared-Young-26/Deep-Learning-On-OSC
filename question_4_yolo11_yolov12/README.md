@@ -1,111 +1,94 @@
-# Question 4: YOLO11 and YOLOv12 on OSC
+# YOLO11 and YOLOv12 Object Detection
 
-This folder packages two separate object-detection demos:
+This module provides two object detection workflows built around local clones of
+[ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) and
+[sunsmarterjie/yolov12](https://github.com/sunsmarterjie/yolov12). Each model
+has its own setup script, wrapper, input folder, and output folder.
 
-- YOLO11 from [ultralytics/ultralytics](https://github.com/ultralytics/ultralytics)
-- YOLOv12 from [sunsmarterjie/yolov12](https://github.com/sunsmarterjie/yolov12)
+## Overview
 
-Each model gets its own setup script, demo wrapper, input folder, and output
-folder so the two workflows stay separate and easy to compare.
+- `question_4_yolo11_yolov12/setup_yolo11_osc.sh` clones the Ultralytics
+  repository into `external/ultralytics` and creates a repo-local virtual
+  environment.
+- `question_4_yolo11_yolov12/demo_yolo11.py` runs YOLO11 inference and copies
+  annotated images to `question_4_yolo11_yolov12/outputs/yolo11/`.
+- `question_4_yolo11_yolov12/setup_yolov12_osc.sh` clones the YOLOv12
+  repository into `external/yolov12` and creates its repo-local virtual
+  environment.
+- `question_4_yolo11_yolov12/demo_yolov12.py` runs YOLOv12 inference and copies
+  annotated images to `question_4_yolo11_yolov12/outputs/yolov12/`.
 
-## Canonical Files
+## Setup
 
-- `setup_yolo11_osc.sh`
-- `setup_yolov12_osc.sh`
-- `demo_yolo11.py`
-- `demo_yolov12.py`
-- `inputs/yolo11/`
-- `inputs/yolov12/`
-- `outputs/yolo11/`
-- `outputs/yolov12/`
-
-## What Each Script Does
-
-- `setup_yolo11_osc.sh`: clones the Ultralytics repo and builds the YOLO11 environment in `external/ultralytics/.venv`
-- `demo_yolo11.py`: resolves the source image(s), runs one upstream `YOLO.predict(...)` call, and copies the annotated images from `runs/detect/` back into `outputs/yolo11/`
-- `setup_yolov12_osc.sh`: clones the YOLOv12 repo and installs the smaller dependency subset needed for this assignment demo
-- `demo_yolov12.py`: follows the same wrapper pattern, but targets the YOLOv12 checkout and writes to `outputs/yolov12/`
-
-## Canonical Workflow
-
-For each model:
-
-1. run the matching setup script once
-2. place images into the matching `inputs/` folder, or use a local file / URL
-3. run the matching demo wrapper
-4. show the saved annotated image(s) from the matching `outputs/` folder
-
-## YOLO11 Setup and Demo
-
-Run from this folder:
+Run from the repository root:
 
 ```bash
-bash setup_yolo11_osc.sh
-python3 demo_yolo11.py
+bash question_4_yolo11_yolov12/setup_yolo11_osc.sh
+bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
 ```
 
-The default upstream clone location is `../external/ultralytics`.
+## Run
 
-Examples:
+YOLO11 on the default input directory:
 
 ```bash
-# Process every supported image in inputs/yolo11/
-python3 demo_yolo11.py
-
-# Process one local file
-python3 demo_yolo11.py --source inputs/yolo11/my_test.jpg
-
-# Process a URL
-python3 demo_yolo11.py --source https://ultralytics.com/images/bus.jpg
+python3 question_4_yolo11_yolov12/demo_yolo11.py
 ```
 
-## YOLOv12 Setup and Demo
-
-Run from this folder:
+YOLO11 on one local image:
 
 ```bash
-bash setup_yolov12_osc.sh
-python3 demo_yolov12.py
+python3 question_4_yolo11_yolov12/demo_yolo11.py \
+  --source question_4_yolo11_yolov12/inputs/yolo11/000000001000.jpg
 ```
 
-Optional on supported Linux `x86_64` CUDA systems only:
+YOLO11 on a URL:
 
 ```bash
-INSTALL_FLASH_ATTN=1 bash setup_yolov12_osc.sh
+python3 question_4_yolo11_yolov12/demo_yolo11.py \
+  --source https://ultralytics.com/images/bus.jpg
 ```
 
-The default upstream clone location is `../external/yolov12`.
-
-Examples:
+YOLOv12 on the default input directory:
 
 ```bash
-# Process every supported image in inputs/yolov12/
-python3 demo_yolov12.py
-
-# Process one local file
-python3 demo_yolov12.py --source inputs/yolov12/my_test.jpg --device cpu
-
-# Process a URL
-python3 demo_yolov12.py --source https://ultralytics.com/images/bus.jpg --device cpu
+python3 question_4_yolo11_yolov12/demo_yolov12.py
 ```
 
-## Input and Output Behavior
+YOLOv12 on one local image with CPU inference:
 
-- YOLO11 reads from `inputs/yolo11/` by default and writes to `outputs/yolo11/`
-- YOLOv12 reads from `inputs/yolov12/` by default and writes to `outputs/yolov12/`
-- If `--source` is a directory, the wrapper writes one annotated file per image using matching filenames
-- If `--source` is one file, the wrapper writes one annotated file with the same filename unless `--output` is used
-- If `--source` is a URL, the wrapper derives the saved filename from the URL path unless `--output` is passed
-- `--output` is for single-image runs only
-- `--output-dir` changes the destination directory for mirrored filenames
+```bash
+python3 question_4_yolo11_yolov12/demo_yolov12.py \
+  --source question_4_yolo11_yolov12/inputs/yolov12/000000007795.jpg \
+  --device cpu
+```
 
-## Platform Notes
+YOLOv12 on a URL with CPU inference:
 
-- On headless nodes, both demos save files directly and do not need a GUI
-- If needed, load OSC Python or CUDA modules before setup
-- You can force CPU inference with `--device cpu`
-- Supported image suffixes are `.jpg`, `.jpeg`, `.png`, `.bmp`, and `.webp`
-- `INSTALL_FLASH_ATTN=1` only makes sense on supported Linux `x86_64` CUDA nodes
-- On macOS, YOLOv12 setup intentionally skips FlashAttention instead of failing
+```bash
+python3 question_4_yolo11_yolov12/demo_yolov12.py \
+  --source https://ultralytics.com/images/bus.jpg \
+  --device cpu
+```
 
+## Inputs and Outputs
+
+- YOLO11 reads from `question_4_yolo11_yolov12/inputs/yolo11/` by default and
+  writes curated outputs to `question_4_yolo11_yolov12/outputs/yolo11/`.
+- YOLOv12 reads from `question_4_yolo11_yolov12/inputs/yolov12/` by default and
+  writes curated outputs to `question_4_yolo11_yolov12/outputs/yolov12/`.
+- `--source` accepts a local image path, a directory, or an image URL.
+- `--output` is for single-image runs only.
+- `--output-dir` changes the destination directory when copying annotated
+  outputs.
+- Both wrappers use `question_4_yolo11_yolov12/runs/detect/` for the upstream
+  run directory before copying final images into `outputs/`.
+
+## Environment Notes
+
+- Use `--device cpu` on CPU-only systems or when you want to avoid GPU
+  inference.
+- Supported input suffixes are `.jpg`, `.jpeg`, `.png`, `.bmp`, and `.webp`.
+- `INSTALL_FLASH_ATTN=1 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh`
+  is only intended for Linux `x86_64` CUDA systems.
 

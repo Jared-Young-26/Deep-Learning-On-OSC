@@ -10,8 +10,7 @@ REPO_DIR="${1:-${DEFAULT_REPO_DIR}}"
 OS_NAME="$(uname -s)"
 PYTHON_BIN="${PYTHON_BIN:-}"
 
-# Default to installing TF2 on macOS because that is the runnable local path for
-# this assignment, while Linux/OSC users can rely on the PyTorch implementation.
+# Choose the default framework family from the current operating system.
 if [[ -z "${INSTALL_TF2:-}" ]]; then
   if [[ "${OS_NAME}" == "Darwin" ]]; then
     INSTALL_TF2="1"
@@ -20,8 +19,7 @@ if [[ -z "${INSTALL_TF2:-}" ]]; then
   fi
 fi
 
-# Prefer Python 3.11 when available because it is a stable target for both the
-# venv tooling and the older upstream dependency pins used by this project.
+# Prefer Python 3.11 when it is available.
 if [[ -z "${PYTHON_BIN}" ]]; then
   if command -v python3.11 >/dev/null 2>&1; then
     PYTHON_BIN="python3.11"
@@ -31,19 +29,21 @@ if [[ -z "${PYTHON_BIN}" ]]; then
 fi
 
 if [[ "${REPO_DIR}" != /* ]]; then
-  # Accept a relative repo target but normalize it before clone/setup begins.
+  # Resolve relative clone targets before the rest of the script uses the path.
   REPO_DIR="${PWD}/${REPO_DIR}"
 fi
 
+# Stop immediately if the requested interpreter is unavailable.
 if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
   echo "Error: ${PYTHON_BIN} was not found."
   echo "Set PYTHON_BIN to a valid Python interpreter, ideally Python 3.11."
   exit 1
 fi
 
-# Clone once into external/ so the question folder only contains wrapper code.
+# Create the parent directory before cloning into it.
 mkdir -p "$(dirname "${REPO_DIR}")"
 
+# Reuse the existing clone when it is already present.
 if [[ -d "${REPO_DIR}/.git" ]]; then
   echo "Using existing clone at ${REPO_DIR}"
 else
@@ -53,12 +53,12 @@ fi
 
 cd "${REPO_DIR}"
 
-# Match the selected interpreter to the virtual environment to avoid subtle package
-# conflicts between multiple Python versions on the same machine.
+# Capture the selected interpreter version before reusing or rebuilding the environment.
 SELECTED_PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 echo "Using Python interpreter: ${PYTHON_BIN} (${SELECTED_PYTHON_VERSION})"
 
 if [[ -x ".venv/bin/python" ]]; then
+  # Refuse to reuse an environment built with a different Python minor version.
   EXISTING_VENV_VERSION="$(.venv/bin/python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
   if [[ "${EXISTING_VENV_VERSION}" != "${SELECTED_PYTHON_VERSION}" ]]; then
     echo "Existing virtual environment uses Python ${EXISTING_VENV_VERSION}, but setup selected ${SELECTED_PYTHON_VERSION}."
@@ -67,19 +67,18 @@ if [[ -x ".venv/bin/python" ]]; then
   fi
 fi
 
-# Recreate the virtual environment from the chosen interpreter so the demo is
-# reproducible and not affected by stale packages from previous attempts.
+# Rebuild the virtual environment from the selected interpreter.
 echo "Creating virtual environment at ${REPO_DIR}/.venv"
 "${PYTHON_BIN}" -m venv --clear .venv
+
+# Activate the environment before installing packages into it.
 source .venv/bin/activate
 
-# Install the minimal runtime that keeps the upstream repo usable on both OSC/Linux
-# and a local macOS walkthrough machine.
+# Update the packaging tools before installing the runtime stack.
 python -m pip install --upgrade pip setuptools wheel
 
 if [[ "${OS_NAME}" == "Darwin" ]]; then
-  # On macOS install a portable CPU-friendly stack instead of the upstream Linux
-  # requirements file, which assumes CUDA-specific wheels.
+  # Install a platform-compatible package set on macOS.
   echo "Detected macOS. The upstream FasterRCNN PyTorch requirements pin Linux CUDA wheels."
   echo "Installing portable PyTorch dependencies from PyPI instead."
   pip install \
@@ -90,13 +89,12 @@ if [[ "${OS_NAME}" == "Darwin" ]]; then
     tqdm==4.65.0
   pip install torch torchvision
 else
-  # On Linux/OSC the upstream PyTorch requirements are the closest match to the
-  # original project instructions, including CUDA-enabled packages when available.
+  # Use the upstream PyTorch requirements on Linux systems.
   pip install -r pytorch/requirements.txt
 fi
 
 if [[ "${INSTALL_TF2}" == "1" ]]; then
-  # TensorFlow is optional overall, but it is the key local demo path on macOS.
+  # Install the TensorFlow dependency set when it is enabled.
   echo "Installing TensorFlow dependencies."
   pip install -r tf2/requirements.txt
   if [[ "${OS_NAME}" == "Darwin" ]]; then
@@ -105,7 +103,7 @@ if [[ "${INSTALL_TF2}" == "1" ]]; then
   fi
 fi
 
-# Finish with the exact next commands needed for the demo run.
+# Print the next commands for the prepared environment.
 cat <<EOF
 Setup complete.
 

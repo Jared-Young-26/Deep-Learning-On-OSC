@@ -10,19 +10,20 @@ REPO_DIR="${1:-${DEFAULT_REPO_DIR}}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 if [[ "${REPO_DIR}" != /* ]]; then
-  # Allow a relative destination path, but normalize it before clone/setup continues.
+  # Resolve relative clone targets before the rest of the script uses the path.
   REPO_DIR="${PWD}/${REPO_DIR}"
 fi
 
-# Create the parent directory once so the clone target is valid even on a fresh repo.
+# Create the parent directory before cloning into it.
 mkdir -p "$(dirname "${REPO_DIR}")"
 
+# Stop immediately if the requested interpreter is unavailable.
 if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
   echo "Error: ${PYTHON_BIN} was not found. Set PYTHON_BIN to a valid Python executable."
   exit 1
 fi
 
-# Clone once into external/ so the question directory only keeps the wrapper/demo code.
+# Reuse the existing clone when it is already present.
 if [[ -d "${REPO_DIR}/.git" ]]; then
   echo "Using existing clone at ${REPO_DIR}"
 else
@@ -32,20 +33,20 @@ fi
 
 cd "${REPO_DIR}"
 
-# Build the repo-local environment that the question 4 wrapper will call directly.
-# This keeps the assignment wrapper isolated from whatever global Python packages
-# may already exist on the machine.
+# Create the repository-local virtual environment used by the Python entrypoint.
 echo "Creating virtual environment at ${REPO_DIR}/.venv"
 "${PYTHON_BIN}" -m venv .venv
+
+# Activate the environment before installing packages into it.
 source .venv/bin/activate
 
+# Update the packaging tools before installing the project itself.
 python -m pip install --upgrade pip setuptools wheel
 
-# Install the cloned repository in editable mode so imports resolve from this
-# checkout while still allowing local source updates.
+# Install the clone in editable mode so imports resolve to this checkout.
 pip install -e .
 
-# Finish with the exact next steps for the local demo.
+# Print the next commands for the prepared environment.
 cat <<EOF2
 YOLO11 setup complete.
 

@@ -5,15 +5,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TLIB_REPO_DIR="${TLIB_REPO_DIR:-${REPO_ROOT}/external/Transfer-Learning-Library}"
 PREFLIGHT_SCRIPT="${REPO_ROOT}/osc_gpu_preflight.sh"
+SETUP_SCRIPT="${SCRIPT_DIR}/setup_tllib_osc.sh"
 PYTHON_BIN="${PYTHON_BIN:-${TLIB_REPO_DIR}/.venv/bin/python}"
 ALLOW_CPU="${ALLOW_CPU:-0}"
 FORCE="${FORCE:-0}"
 PROFILE="${PROFILE:-smoke}"
 
-# Stop early if setup has not created the repository-local Python entrypoint yet.
 if [[ ! -x "${PYTHON_BIN}" ]]; then
-  echo "Error: ${PYTHON_BIN} was not found or is not executable."
-  echo "Run bash question_7_transfer_learning/setup_tllib_osc.sh first."
+  echo "TLlib runtime missing at ${PYTHON_BIN}; running full setup."
+  env INSTALL_TORCH=1 INSTALL_DETECTRON2=1 \
+    bash "${SETUP_SCRIPT}" "${TLIB_REPO_DIR}"
+else
+  echo "TLlib repair-only preflight:"
+  env REPAIR_ONLY=1 \
+    bash "${SETUP_SCRIPT}" "${TLIB_REPO_DIR}"
+fi
+
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+  echo "Error: ${PYTHON_BIN} was not found or is not executable after Q7 setup."
   exit 1
 fi
 

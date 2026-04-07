@@ -14,10 +14,11 @@ Upstream references:
 ## Overview
 
 - `question_7_transfer_learning/setup_tllib_osc.sh` clones TLlib, creates the
-  repo-local environment, and installs the baseline dependencies.
+  repo-local environment, installs the baseline dependencies, and can also run
+  a repair-only compatibility preflight.
 - `question_7_transfer_learning/run_tllib_osc.sh` runs the default end-to-end
-  helper flow: doctor check first, then the smoke-profile full pipeline unless
-  `PROFILE=benchmark` is set.
+  helper flow: self-heal the TLlib clone first, run doctor, then the
+  smoke-profile full pipeline unless `PROFILE=benchmark` is set.
 - `question_7_transfer_learning/demo_tllib_object_detection.py` exposes the
   wrapper's individual modes: `doctor`, `prepare-datasets`, `source-only`,
   `d-adapt`, `visualize`, `report`, and `full-pipeline`.
@@ -32,12 +33,15 @@ bash question_7_transfer_learning/setup_tllib_osc.sh
 
 This setup script standardizes OSC on Python 3.9.18 and rejects other Python
 minor versions before rebuilding `external/Transfer-Learning-Library/.venv`.
+It also applies a small TLlib compatibility patch for newer `torchvision`
+releases used on OSC.
 
 Optional setup flags:
 
 ```bash
 INSTALL_TORCH=1 bash question_7_transfer_learning/setup_tllib_osc.sh
 INSTALL_DETECTRON2=1 bash question_7_transfer_learning/setup_tllib_osc.sh
+REPAIR_ONLY=1 bash question_7_transfer_learning/setup_tllib_osc.sh
 ```
 
 On Linux/OSC, the setup script now forces Detectron2 to build with GNU
@@ -52,6 +56,14 @@ DETECTRON2_CC=$(command -v gcc) DETECTRON2_CXX=$(command -v g++) \
 
 The default upstream clone location is `external/Transfer-Learning-Library`.
 
+## Self-Healing Behavior
+
+- `run_tllib_osc.sh` is self-bootstrapping.
+- If the TLlib virtualenv is missing, it runs full setup automatically.
+- If the virtualenv already exists, it runs `REPAIR_ONLY=1` first so stale
+  TLlib source files are patched before doctor or training starts.
+- `run_assignment_osc.sh` uses the same repair-first logic during Q7 readiness.
+
 ## Doctor Check
 
 Verify the environment before training:
@@ -65,6 +77,13 @@ the full assignment:
 
 ```bash
 env INSTALL_TORCH=1 INSTALL_DETECTRON2=1 \
+  bash question_7_transfer_learning/setup_tllib_osc.sh
+```
+
+Run only the idempotent compatibility repair on an existing clone:
+
+```bash
+env REPAIR_ONLY=1 \
   bash question_7_transfer_learning/setup_tllib_osc.sh
 ```
 
@@ -106,6 +125,9 @@ Run the helper script on a prepared environment:
 bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- \
   bash question_7_transfer_learning/run_tllib_osc.sh
 ```
+
+This is the recommended morning command after a plain `git pull`; the helper
+now repairs or bootstraps the TLlib clone automatically before running Q7.
 
 Run the helper with the benchmark profile instead:
 

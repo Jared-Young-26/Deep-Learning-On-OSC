@@ -10,6 +10,7 @@ REPO_DIR="${1:-${DEFAULT_REPO_DIR}}"
 PYTHON_BIN="${PYTHON_BIN:-}"
 INSTALL_TORCH="${INSTALL_TORCH:-0}"
 INSTALL_DETECTRON2="${INSTALL_DETECTRON2:-0}"
+REPAIR_ONLY="${REPAIR_ONLY:-0}"
 TORCH_INDEX_URL="${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu121}"
 DETECTRON2_PIP_SPEC="${DETECTRON2_PIP_SPEC:-git+https://github.com/facebookresearch/detectron2.git}"
 DETECTRON2_BUILD_NINJA="${DETECTRON2_BUILD_NINJA:-1}"
@@ -39,6 +40,41 @@ compiler_looks_nvhpc() {
   [[ "${banner}" == *"NVIDIA"* || "${banner}" == *"NVHPC"* || "${banner}" == *"PGI"* || "${banner}" == *"nvc++"* || "${banner}" == *"nvc "* ]]
 }
 
+apply_tllib_torchvision_compat() {
+  "${PYTHON_BIN}" - <<'PY'
+from pathlib import Path
+
+repo_dir = Path.cwd()
+
+resnet_path = repo_dir / "tllib" / "vision" / "models" / "resnet.py"
+resnet_text = resnet_path.read_text()
+old_import = """from torch.hub import load_state_dict_from_url\ntry:\n    from torchvision.models.resnet import BasicBlock, Bottleneck, model_urls\nexcept ImportError:\n    from torchvision.models.resnet import BasicBlock, Bottleneck\n    model_urls = None\n"""
+new_import = """from torch.hub import load_state_dict_from_url\nfrom torchvision.models.resnet import BasicBlock, Bottleneck\n"""
+old_model_urls = """WEIGHTS_ENUMS = {\n    'resnet18': models.ResNet18_Weights.IMAGENET1K_V1,\n    'resnet34': models.ResNet34_Weights.IMAGENET1K_V1,\n    'resnet50': models.ResNet50_Weights.IMAGENET1K_V1,\n    'resnet101': models.ResNet101_Weights.IMAGENET1K_V1,\n    'resnet152': models.ResNet152_Weights.IMAGENET1K_V1,\n    'resnext50_32x4d': models.ResNeXt50_32X4D_Weights.IMAGENET1K_V1,\n    'resnext101_32x8d': models.ResNeXt101_32X8D_Weights.IMAGENET1K_V1,\n    'wide_resnet50_2': models.Wide_ResNet50_2_Weights.IMAGENET1K_V1,\n    'wide_resnet101_2': models.Wide_ResNet101_2_Weights.IMAGENET1K_V1,\n}\n"""
+new_model_urls = """WEIGHTS_ENUMS = {\n    'resnet18': models.ResNet18_Weights.IMAGENET1K_V1,\n    'resnet34': models.ResNet34_Weights.IMAGENET1K_V1,\n    'resnet50': models.ResNet50_Weights.IMAGENET1K_V1,\n    'resnet101': models.ResNet101_Weights.IMAGENET1K_V1,\n    'resnet152': models.ResNet152_Weights.IMAGENET1K_V1,\n    'resnext50_32x4d': models.ResNeXt50_32X4D_Weights.IMAGENET1K_V1,\n    'resnext101_32x8d': models.ResNeXt101_32X8D_Weights.IMAGENET1K_V1,\n    'wide_resnet50_2': models.Wide_ResNet50_2_Weights.IMAGENET1K_V1,\n    'wide_resnet101_2': models.Wide_ResNet101_2_Weights.IMAGENET1K_V1,\n}\n\n# torchvision removed `model_urls`, but several TLlib modules still import it.\n# Recreate the same mapping from the modern weights enums so older TLlib code\n# can keep calling `load_state_dict_from_url(model_urls[arch])`.\nmodel_urls = {arch: weights.url for arch, weights in WEIGHTS_ENUMS.items()}\n"""
+old_pretrained = """        if model_urls is not None:\n            pretrained_dict = load_state_dict_from_url(model_urls[arch], progress=progress)\n        else:\n            pretrained_dict = WEIGHTS_ENUMS[arch].get_state_dict(progress=progress)\n"""
+new_pretrained = """        pretrained_dict = load_state_dict_from_url(model_urls[arch], progress=progress)\n"""
+
+if old_import in resnet_text:
+    resnet_text = resnet_text.replace(old_import, new_import)
+if old_model_urls in resnet_text and "model_urls = {arch: weights.url for arch, weights in WEIGHTS_ENUMS.items()}" not in resnet_text:
+    resnet_text = resnet_text.replace(old_model_urls, new_model_urls)
+if old_pretrained in resnet_text:
+    resnet_text = resnet_text.replace(old_pretrained, new_pretrained)
+resnet_path.write_text(resnet_text)
+
+deeplab_path = repo_dir / "tllib" / "vision" / "models" / "segmentation" / "deeplabv2.py"
+deeplab_text = deeplab_path.read_text()
+deeplab_text = deeplab_text.replace(
+    "from torchvision.models.utils import load_state_dict_from_url\n",
+    "from torch.hub import load_state_dict_from_url\n",
+)
+deeplab_path.write_text(deeplab_text)
+
+print("Applied TLlib torchvision compatibility patches.")
+PY
+}
+
 # Allow a relative target path at invocation time, then normalize it before the
 # rest of the script reuses the resolved repository location.
 if [[ "${REPO_DIR}" != /* ]]; then
@@ -62,6 +98,41 @@ else
 fi
 
 cd "${REPO_DIR}"
+apply_tllib_torchvision_compat
+
+REPO_PYTHON="${REPO_DIR}/.venv/bin/python"
+
+if [[ "${REPAIR_ONLY}" == "1" ]]; then
+  echo "Repair-only mode enabled. Skipping virtualenv rebuild and package installation."
+  if [[ -x "${REPO_PYTHON}" ]]; then
+    EXISTING_VENV_VERSION="$("${REPO_PYTHON}" -c 'import sys; print(sys.version.split()[0])')"
+    echo "Existing repo-local Python: ${REPO_PYTHON} (${EXISTING_VENV_VERSION})"
+    if [[ "${EXISTING_VENV_VERSION}" != "${SUPPORTED_PYTHON_VERSION}" ]]; then
+      echo "Note: repo-local Python does not match the supported OSC version ${SUPPORTED_PYTHON_VERSION}."
+    fi
+    if "${REPO_PYTHON}" -c "import detectron2" >/dev/null 2>&1; then
+      DETECTRON2_STATUS="installed"
+    else
+      DETECTRON2_STATUS="missing"
+    fi
+  else
+    echo "Note: repo-local Python entrypoint is missing at ${REPO_PYTHON}."
+    DETECTRON2_STATUS="missing"
+  fi
+
+  cat <<EOF
+TLlib repair-only preflight complete.
+
+Repair summary:
+  - patched TLlib torchvision compatibility shims
+  - repo-local python: $(if [[ -x "${REPO_PYTHON}" ]]; then printf '%s' "${REPO_PYTHON}"; else printf '<missing>'; fi)
+  - detectron2 status: ${DETECTRON2_STATUS}
+
+If the repo-local Python is missing, rerun full setup:
+  INSTALL_TORCH=1 INSTALL_DETECTRON2=1 bash "${SCRIPT_DIR}/setup_tllib_osc.sh" "${REPO_DIR}"
+EOF
+  exit 0
+fi
 
 # Capture the selected interpreter version before reusing or rebuilding the environment.
 SELECTED_PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print(sys.version.split()[0])')"

@@ -17,6 +17,7 @@ Q5_DATASET_YAML="${REPO_ROOT}/question_5_semantic_segmentation/datasets/isaid_se
 Q5_TRAIN_PROJECT_DIR="${REPO_ROOT}/question_5_semantic_segmentation/runs/segment/train"
 Q5_TRAIN_RUN_NAME="isaid_yolo11s_seg"
 Q5_LAST_CHECKPOINT="${Q5_TRAIN_PROJECT_DIR}/${Q5_TRAIN_RUN_NAME}/weights/last.pt"
+Q7_REPO_DIR="${REPO_ROOT}/external/Transfer-Learning-Library"
 Q7_REPO_PYTHON="${REPO_ROOT}/external/Transfer-Learning-Library/.venv/bin/python"
 
 ACCOUNT=""
@@ -357,10 +358,16 @@ stage_q6_execution() {
 
 stage_q7_readiness() {
   start_stage "Q7 readiness"
-  if ! python_imports_available "${Q7_REPO_PYTHON}" torch timm detectron2; then
+  if [[ -d "${Q7_REPO_DIR}" ]]; then
+    log "INFO" "Q7 repo exists; running repair-only preflight before import checks."
+    run_cmd env REPAIR_ONLY=1 bash question_7_transfer_learning/setup_tllib_osc.sh "${Q7_REPO_DIR}"
+  fi
+
+  if ! python_version_matches "${Q7_REPO_PYTHON}" || ! python_imports_available "${Q7_REPO_PYTHON}" torch timm detectron2; then
     log "INFO" "Q7 runtime is missing or incomplete; running TLlib setup with torch and detectron2."
-    run_cmd env INSTALL_TORCH=1 INSTALL_DETECTRON2=1 bash question_7_transfer_learning/setup_tllib_osc.sh
+    run_cmd env INSTALL_TORCH=1 INSTALL_DETECTRON2=1 bash question_7_transfer_learning/setup_tllib_osc.sh "${Q7_REPO_DIR}"
     if [[ "${DRY_RUN}" != "1" ]]; then
+      python_version_matches "${Q7_REPO_PYTHON}" || fail "Q7 setup did not leave a Python ${SUPPORTED_PYTHON_VERSION} runtime at ${Q7_REPO_PYTHON}"
       python_imports_available "${Q7_REPO_PYTHON}" torch timm detectron2 || fail "Q7 setup did not produce a working torch+timm+detectron2 runtime at ${Q7_REPO_PYTHON}"
     fi
   else

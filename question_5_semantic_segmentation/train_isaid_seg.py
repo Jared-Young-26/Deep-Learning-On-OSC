@@ -181,9 +181,38 @@ def main() -> int:
             f"Dataset YAML does not exist: {data_yaml}. Run bootstrap_isaid_seg.py first."
         )
 
+    import torch
+
     from ultralytics import YOLO
     from ultralytics.models.yolo.segment.train import SegmentationTrainer
     from ultralytics.utils import LOCAL_RANK, LOGGER, RANK
+    from ultralytics.utils.torch_utils import strip_optimizer, torch_distributed_zero_first
+
+    best_resume_checkpoint = run_dir / "weights" / "best.pt"
+
+    def completed_epochs(checkpoint_path: Path) -> int | None:
+        """Return the 1-based completed epoch count stored in one checkpoint."""
+        if not checkpoint_path.exists():
+            return None
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        epoch_index = checkpoint.get("epoch")
+        if epoch_index is None:
+            return None
+        return int(epoch_index) + 1
+
+    if args.resume:
+        completed = completed_epochs(resume_checkpoint)
+        if completed is not None and completed >= args.epochs:
+            recovered_checkpoint = best_resume_checkpoint if best_resume_checkpoint.exists() else resume_checkpoint
+            print(
+                "Detected a completed training checkpoint; recovering the reusable alias "
+                "without rerunning the training loop."
+            )
+            ensure_parent(output_model)
+            shutil.copy2(recovered_checkpoint, output_model)
+            print(f"Recovered checkpoint: {recovered_checkpoint}")
+            print(f"Reusable alias path: {output_model}")
+            return 0
 
     class OSCSafeSegmentationTrainer(SegmentationTrainer):
         """Cap validation batch size on OSC to reduce host-memory pressure."""
@@ -207,6 +236,17 @@ def main() -> int:
                     "Using validation batch size %s on OSC to avoid the default doubled val batch.",
                     batch_size,
                 )
+
+        def final_eval(self):
+            """Skip Ultralytics' redundant post-training best.pt validation on OSC."""
+            model = self.best if self.best.exists() else None
+            with torch_distributed_zero_first(LOCAL_RANK):
+                if RANK in {-1, 0}:
+                    ckpt = strip_optimizer(self.last) if self.last.exists() else {}
+                    if model:
+                        strip_optimizer(self.best, updates={"train_results": ckpt.get("train_results")})
+            if model and RANK in {-1, 0}:
+                LOGGER.info("Skipping final best.pt validation on OSC because epoch-end validation already ran.")
 
     if args.resume and not resume_checkpoint.exists():
         raise FileNotFoundError(

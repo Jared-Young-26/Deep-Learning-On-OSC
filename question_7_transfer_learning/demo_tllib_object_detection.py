@@ -83,6 +83,12 @@ PROFILE_DEFAULTS = {
         "summary_dir": str(DEFAULT_SMOKE_SUMMARY_DIR),
     },
     "benchmark": {
+        # OSC allocations have been sensitive to host-memory pressure during
+        # Detectron2 evaluation and D-adapt loader startup, so keep all worker
+        # pools single-process by default unless the user opts back in.
+        "dataloader_workers": 0,
+        "category_workers": 0,
+        "bbox_workers": 0,
         "phase_count": 3,
         "adapt_confidence_ratios": "0.1,0.2",
         "source_output_dir": str(DEFAULT_BENCHMARK_SOURCE_OUTPUT_DIR),

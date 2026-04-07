@@ -160,9 +160,85 @@ imagelist_path.write_text(imagelist_text)
 object_detection_dataset_path = repo_dir / "tllib" / "vision" / "datasets" / "object_detection" / "__init__.py"
 object_detection_dataset_text = object_detection_dataset_path.read_text()
 object_detection_dataset_text = object_detection_dataset_text.replace(
+    "import xml.etree.ElementTree as ET\n\nfrom detectron2.data import (\n",
+    "import xml.etree.ElementTree as ET\n\nfrom PIL import Image\nfrom detectron2.data import (\n",
+)
+object_detection_dataset_text = object_detection_dataset_text.replace(
     "fileids = np.loadtxt(f, dtype=np.str)\n",
     "fileids = np.loadtxt(f, dtype=str)\n",
 )
+if "def _resolve_image_size(image_path, xml_height, xml_width):\n" not in object_detection_dataset_text:
+    object_detection_dataset_text = object_detection_dataset_text.replace(
+        "def parse_root_and_file_name(path):\n"
+        "    path_list = path.split('/')\n"
+        "    dataset_root = '/'.join(path_list[:-1])\n"
+        "    file_name = path_list[-1]\n"
+        "    if dataset_root == '':\n"
+        "        dataset_root = '.'\n"
+        "    return dataset_root, file_name\n",
+        "def parse_root_and_file_name(path):\n"
+        "    path_list = path.split('/')\n"
+        "    dataset_root = '/'.join(path_list[:-1])\n"
+        "    file_name = path_list[-1]\n"
+        "    if dataset_root == '':\n"
+        "        dataset_root = '.'\n"
+        "    return dataset_root, file_name\n\n\n"
+        "def _resolve_image_size(image_path, xml_height, xml_width):\n"
+        "    try:\n"
+        "        with PathManager.open(image_path, \"rb\") as image_file:\n"
+        "            with Image.open(image_file) as image:\n"
+        "                image_width, image_height = image.size\n"
+        "    except Exception:\n"
+        "        return xml_height, xml_width, False\n\n"
+        "    corrected = image_height != xml_height or image_width != xml_width\n"
+        "    return image_height, image_width, corrected\n",
+    )
+object_detection_dataset_text = object_detection_dataset_text.replace(
+    "    dicts = []\n"
+    "    skip_classes = set()\n",
+    "    dicts = []\n"
+    "    skip_classes = set()\n"
+    "    corrected_size_count = 0\n"
+    "    corrected_size_examples = []\n",
+)
+object_detection_dataset_text = object_detection_dataset_text.replace(
+    "        r = {\n"
+    "            \"file_name\": jpeg_file,\n"
+    "            \"image_id\": fileid,\n"
+    "            \"height\": int(tree.findall(\"./size/height\")[0].text),\n"
+    "            \"width\": int(tree.findall(\"./size/width\")[0].text),\n"
+    "        }\n",
+    "        xml_height = int(tree.findall(\"./size/height\")[0].text)\n"
+    "        xml_width = int(tree.findall(\"./size/width\")[0].text)\n"
+    "        image_height, image_width, corrected_size = _resolve_image_size(\n"
+    "            jpeg_file, xml_height, xml_width\n"
+    "        )\n"
+    "        if corrected_size:\n"
+    "            corrected_size_count += 1\n"
+    "            if len(corrected_size_examples) < 5:\n"
+    "                corrected_size_examples.append(\n"
+    "                    f\"{fileid}: xml {xml_height}x{xml_width} -> jpeg {image_height}x{image_width}\"\n"
+    "                )\n\n"
+    "        r = {\n"
+    "            \"file_name\": jpeg_file,\n"
+    "            \"image_id\": fileid,\n"
+    "            \"height\": image_height,\n"
+    "            \"width\": image_width,\n"
+    "        }\n",
+)
+if "Corrected image-size metadata for " not in object_detection_dataset_text:
+    object_detection_dataset_text = object_detection_dataset_text.replace(
+        "    print(\"Skip classes:\", list(skip_classes))\n"
+        "    return dicts\n",
+        "    print(\"Skip classes:\", list(skip_classes))\n"
+        "    if corrected_size_count:\n"
+        "        print(\n"
+        "            \"Corrected image-size metadata for \"\n"
+        "            f\"{corrected_size_count} VOC annotations using JPEG headers. \"\n"
+        "            f\"Examples: {', '.join(corrected_size_examples)}\"\n"
+        "        )\n"
+        "    return dicts\n",
+    )
 object_detection_dataset_path.write_text(object_detection_dataset_text)
 
 dadapt_proposal_path = repo_dir / "tllib" / "alignment" / "d_adapt" / "proposal.py"

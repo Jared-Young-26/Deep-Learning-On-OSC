@@ -111,7 +111,12 @@ from torchvision.models.resnet import BasicBlock, Bottleneck
   validation. It now validates the source-only stage only and skips D-adapt by
   default because the tiny proposal sets are often too small for stable
   adaptation batches.
-- `benchmark` uses the full datasets and benchmark output locations.
+- `benchmark` uses the full datasets and benchmark output locations. On OSC it
+  now defaults all Detectron2 and D-adapt data-loader worker pools to `0` to
+  avoid Slurm host-memory OOMs; raise them manually only if your allocation has
+  headroom. The OSC preflight also repairs stale VOC-style annotation sizes in
+  TLlib so Clipart examples with mismatched XML `width`/`height` metadata do
+  not trip Detectron2 size checks.
 
 ## Smoke Profile
 

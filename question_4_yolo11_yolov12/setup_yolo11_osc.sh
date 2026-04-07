@@ -8,11 +8,11 @@ DEFAULT_REPO_DIR="${REPO_ROOT}/external/ultralytics"
 REPO_URL="${REPO_URL:-https://github.com/ultralytics/ultralytics.git}"
 REPO_DIR="${1:-${DEFAULT_REPO_DIR}}"
 PYTHON_BIN="${PYTHON_BIN:-}"
-SUPPORTED_PYTHON_VERSION="${SUPPORTED_PYTHON_VERSION:-3.10}"
+SUPPORTED_PYTHON_VERSION="${SUPPORTED_PYTHON_VERSION:-3.9.18}"
 
 if [[ -z "${PYTHON_BIN}" ]]; then
-  if command -v python3.10 >/dev/null 2>&1; then
-    PYTHON_BIN="python3.10"
+  if command -v python3.9 >/dev/null 2>&1; then
+    PYTHON_BIN="python3.9"
   else
     PYTHON_BIN="python3"
   fi
@@ -43,7 +43,7 @@ fi
 cd "${REPO_DIR}"
 
 # Capture the selected interpreter version before reusing or rebuilding the environment.
-SELECTED_PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+SELECTED_PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print(sys.version.split()[0])')"
 echo "Using Python interpreter: ${PYTHON_BIN} (${SELECTED_PYTHON_VERSION})"
 
 if [[ "${SELECTED_PYTHON_VERSION}" != "${SUPPORTED_PYTHON_VERSION}" ]]; then
@@ -54,7 +54,7 @@ fi
 
 if [[ -x ".venv/bin/python" ]]; then
   # Refuse to reuse an environment built with a different Python minor version.
-  EXISTING_VENV_VERSION="$(.venv/bin/python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+  EXISTING_VENV_VERSION="$(.venv/bin/python -c 'import sys; print(sys.version.split()[0])')"
   if [[ "${EXISTING_VENV_VERSION}" != "${SELECTED_PYTHON_VERSION}" ]]; then
     echo "Existing virtual environment uses Python ${EXISTING_VENV_VERSION}, but setup selected ${SELECTED_PYTHON_VERSION}."
     echo "Remove ${REPO_DIR}/.venv and rerun, or set PYTHON_BIN to match the existing environment."
@@ -83,5 +83,5 @@ Next steps:
   1) cd "${REPO_DIR}"
   2) source .venv/bin/activate
   3) cd "${SCRIPT_DIR}"
-  4) python3.10 demo_yolo11.py --repo-dir "${REPO_DIR}"
+  4) python3.9 demo_yolo11.py --repo-dir "${REPO_DIR}"
 EOF2

@@ -1,18 +1,18 @@
 # OSC Python Compatibility
 
-This repository standardizes OSC on Python 3.10.
+This repository standardizes OSC on Python 3.9.18.
 
 ## Decision
 
-- `q3` Faster R-CNN: Python 3.10 only.
-- `q4` YOLO11 and YOLOv12: Python 3.10 baseline on OSC.
-- `q5` YOLO11 segmentation: Python 3.10 baseline on OSC.
-- `q6` Convolution filters: Python 3.10 baseline on OSC.
-- `q7` TLlib/Detectron2: Python 3.10 only.
+- `q3` Faster R-CNN: Python 3.9.18 only.
+- `q4` YOLO11 and YOLOv12: Python 3.9.18 baseline on OSC.
+- `q5` YOLO11 segmentation: Python 3.9.18 baseline on OSC.
+- `q6` Convolution filters: Python 3.9.18 baseline on OSC.
+- `q7` TLlib/Detectron2: Python 3.9.18 only.
 
 ## Why
 
-- Repo-owned entrypoints were audited for Python 3.10 syntax compatibility.
+- Repo-owned entrypoints were audited for Python 3.9 syntax compatibility.
 - The fragile stacks are `q3` and `q7`, where upstream package support matters
   more than local script syntax.
 - `q4` and `q5` could likely tolerate newer minors in isolation, but the repo
@@ -32,4 +32,4 @@ This repository standardizes OSC on Python 3.10.
   are the relevant upstream signal for the TLlib object-detection path.
 - [external/ultralytics/pyproject.toml](/Users/jaredyoung/Documents/Programs/GitHub/Deep-Learning-On-OSC/external/ultralytics/pyproject.toml)
   and [PyTorch 2.2.2 on PyPI](https://pypi.org/project/torch/2.2.2/)
-  support keeping the YOLO workflows on the shared 3.10 baseline.
+  support keeping the YOLO workflows on the shared 3.9.18 baseline.

@@ -20,7 +20,7 @@ DEFAULT_OUTPUT_DIR = QUESTION_DIR / "outputs" / "yolov12"
 DEFAULT_PROJECT_DIR = QUESTION_DIR / "runs" / "detect"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
-SUPPORTED_OSC_PYTHON_VERSION = "3.10"
+SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
 
 # The inline script keeps the actual model invocation inside the target
 # environment while the outer file handles path resolution and artifact copying.
@@ -84,7 +84,7 @@ def resolve_target_python_version(python_bin) -> str:
         [
             python_bin,
             "-c",
-            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+            "import sys; print(sys.version.split()[0])",
         ],
         check=False,
         capture_output=True,
@@ -106,7 +106,7 @@ def ensure_supported_runtime_python(python_bin) -> str:
         raise RuntimeError(
             f"YOLOv12 expects Python {SUPPORTED_OSC_PYTHON_VERSION} in the target runtime, "
             f"but {python_bin} resolved to {version}.\n"
-            "Rebuild external/yolov12/.venv with Python 3.10 or pass --python to a Python 3.10 interpreter."
+            "Rebuild external/yolov12/.venv with Python 3.9.18 or pass --python to a Python 3.9.18 interpreter."
         )
     return version
 

@@ -38,7 +38,7 @@ DEFAULT_WEIGHTS = {
     "pytorch": "fasterrcnn_pytorch_resnet50.pth",
     "tf2": "fasterrcnn_tf2.h5",
 }
-SUPPORTED_OSC_PYTHON_VERSION = "3.10"
+SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
 TF2_ENV_OVERRIDES = {
     "CUDA_VISIBLE_DEVICES": "-1",
     "TF_CPP_MIN_LOG_LEVEL": "2",
@@ -281,7 +281,7 @@ def resolve_target_python_version(python_bin) -> str:
     """Ask one target interpreter for its major.minor version."""
     result = run_python_probe(
         python_bin,
-        "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        "import sys; print(sys.version.split()[0])",
     )
     if result.returncode != 0:
         stderr = result.stderr.strip() or "no stderr output"
@@ -300,12 +300,12 @@ def ensure_supported_runtime_python(python_bin) -> str:
             f"FasterRCNN expects Python {SUPPORTED_OSC_PYTHON_VERSION} in the target runtime, "
             f"but {python_bin} resolved to {version}.",
         ]
-        if version == "3.12":
+        if version.startswith("3.12"):
             details.append(
-                "Python 3.12 remains unsupported here until the PyTorch and TF2 fallback stack is revalidated."
+                "Python 3.12 remains unsupported here, and this workflow now requires exactly Python 3.9.18."
             )
         details.append(
-            "Rebuild external/FasterRCNN/.venv with Python 3.10 or pass --python to a Python 3.10 interpreter."
+            "Rebuild external/FasterRCNN/.venv with Python 3.9.18 or pass --python to a Python 3.9.18 interpreter."
         )
         raise RuntimeError("\n".join(details))
     return version

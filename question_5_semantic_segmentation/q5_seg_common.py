@@ -52,7 +52,7 @@ DEFAULT_DOTA_URL = "https://github.com/ultralytics/assets/releases/download/v0.0
 DEFAULT_ISAID_DATASET_PAGE_URL = "https://captain-whu.github.io/iSAID/dataset.html"
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
-SUPPORTED_OSC_PYTHON_VERSION = "3.10"
+SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
 
 ISAID_CLASS_NAMES = {
     0: "plane",
@@ -183,7 +183,7 @@ def resolve_python_minor_version(python_executable) -> str:
         [
             str(python_executable),
             "-c",
-            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+            "import sys; print(sys.version.split()[0])",
         ],
         check=False,
         capture_output=True,
@@ -205,7 +205,7 @@ def ensure_supported_repo_python_version(python_executable) -> str:
         raise RuntimeError(
             f"YOLO11 segmentation expects Python {SUPPORTED_OSC_PYTHON_VERSION} in the target runtime, "
             f"but {python_executable} resolved to {version}.\n"
-            "Rebuild external/ultralytics/.venv with Python 3.10 or pass --python to a Python 3.10 interpreter."
+            "Rebuild external/ultralytics/.venv with Python 3.9.18 or pass --python to a Python 3.9.18 interpreter."
         )
     return version
 

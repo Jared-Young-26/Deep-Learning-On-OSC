@@ -41,7 +41,7 @@ DEFAULT_BENCHMARK_ADAPT_OUTPUT_ROOT = (
 DEFAULT_BENCHMARK_VISUALIZATION_ROOT = QUESTION_DIR / "visualizations" / "voc2clipart_benchmark"
 DEFAULT_BENCHMARK_SUMMARY_DIR = QUESTION_DIR / "outputs" / "voc2clipart_benchmark"
 REQUIRED_MODULES = ("detectron2", "timm")
-SUPPORTED_OSC_PYTHON_VERSION = "3.10"
+SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
 REQUIRED_DATASET_SUBPATHS = (
     Path("Annotations"),
     Path("JPEGImages"),
@@ -241,19 +241,19 @@ def ensure_supported_runtime_python(python_bin) -> str:
     """Reject unsupported target interpreters before TLlib preflight runs."""
     version = run_python_probe(
         python_bin,
-        "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        "import sys; print(sys.version.split()[0])",
     )
     if version != SUPPORTED_OSC_PYTHON_VERSION:
         details = [
             f"TLlib expects Python {SUPPORTED_OSC_PYTHON_VERSION} in the target runtime, "
             f"but {python_bin} resolved to {version}.",
         ]
-        if version == "3.12":
+        if version.startswith("3.12"):
             details.append(
-                "Python 3.12 remains unsupported here until the Detectron2-backed object-detection stack is revalidated."
+                "Python 3.12 remains unsupported here, and this workflow now requires exactly Python 3.9.18."
             )
         details.append(
-            "Rebuild external/Transfer-Learning-Library/.venv with Python 3.10 or pass --python to a Python 3.10 interpreter."
+            "Rebuild external/Transfer-Learning-Library/.venv with Python 3.9.18 or pass --python to a Python 3.9.18 interpreter."
         )
         raise RuntimeError("\n".join(details))
     return version

@@ -11,7 +11,7 @@ PYTHON_BIN="${PYTHON_BIN:-}"
 INSTALL_FLASH_ATTN="${INSTALL_FLASH_ATTN:-0}"
 PLATFORM_SYSTEM="$(uname -s)"
 PLATFORM_MACHINE="$(uname -m)"
-SUPPORTED_PYTHON_VERSION="${SUPPORTED_PYTHON_VERSION:-3.10}"
+SUPPORTED_PYTHON_VERSION="${SUPPORTED_PYTHON_VERSION:-3.9.18}"
 
 # Pin only the packages required for the local YOLOv12 workflow.
 CORE_PACKAGES=(
@@ -36,13 +36,13 @@ if [[ "${REPO_DIR}" != /* ]]; then
   REPO_DIR="${PWD}/${REPO_DIR}"
 fi
 
-# Prefer Python 3.10 when it is available, but allow a python3 fallback on OSC.
+# Prefer Python 3.9 when it is available, but allow a python3 fallback on OSC.
 if [[ -z "${PYTHON_BIN}" ]]; then
-  if command -v python3.10 >/dev/null 2>&1; then
-    PYTHON_BIN="python3.10"
+  if command -v python3.9 >/dev/null 2>&1; then
+    PYTHON_BIN="python3.9"
   else
     PYTHON_BIN="python3"
-    echo "python3.10 not found on PATH; falling back to python3."
+    echo "python3.9 not found on PATH; falling back to python3."
   fi
 fi
 
@@ -67,7 +67,7 @@ fi
 cd "${REPO_DIR}"
 
 # Capture the selected interpreter version before reusing or rebuilding the environment.
-SELECTED_PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+SELECTED_PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print(sys.version.split()[0])')"
 echo "Using Python interpreter: ${PYTHON_BIN} (${SELECTED_PYTHON_VERSION})"
 
 if [[ "${SELECTED_PYTHON_VERSION}" != "${SUPPORTED_PYTHON_VERSION}" ]]; then
@@ -78,7 +78,7 @@ fi
 
 if [[ -x ".venv/bin/python" ]]; then
   # Refuse to reuse an environment built with a different Python minor version.
-  EXISTING_VENV_VERSION="$(.venv/bin/python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+  EXISTING_VENV_VERSION="$(.venv/bin/python -c 'import sys; print(sys.version.split()[0])')"
   if [[ "${EXISTING_VENV_VERSION}" != "${SELECTED_PYTHON_VERSION}" ]]; then
     echo "Existing virtual environment uses Python ${EXISTING_VENV_VERSION}, but setup selected ${SELECTED_PYTHON_VERSION}."
     echo "Remove ${REPO_DIR}/.venv and rerun, or set PYTHON_BIN to match the existing environment."
@@ -105,7 +105,7 @@ pip install -e .
 
 if [[ "${INSTALL_FLASH_ATTN}" == "1" ]]; then
   echo "Skipping flash-attn install: the supported OSC baseline is Python ${SUPPORTED_PYTHON_VERSION}."
-  echo "Re-enable flash-attn only after the repo's YOLOv12 CUDA stack is revalidated on a separate Python 3.11 environment."
+  echo "Re-enable flash-attn only after the repo's YOLOv12 CUDA stack is revalidated outside the enforced ${SUPPORTED_PYTHON_VERSION} baseline."
 else
   echo "Skipping flash-attn install under the supported Python ${SUPPORTED_PYTHON_VERSION} OSC baseline."
 fi
@@ -118,6 +118,6 @@ Next steps:
   1) cd "${REPO_DIR}"
   2) source .venv/bin/activate
   3) cd "${SCRIPT_DIR}"
-  4) python3.10 demo_yolov12.py --repo-dir "${REPO_DIR}"
+  4) python3.9 demo_yolov12.py --repo-dir "${REPO_DIR}"
      # Add --device cpu on macOS or when you want CPU inference explicitly.
 EOF2

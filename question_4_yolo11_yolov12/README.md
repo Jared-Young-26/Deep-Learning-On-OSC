@@ -27,13 +27,13 @@ bash question_4_yolo11_yolov12/setup_yolo11_osc.sh
 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
 ```
 
-Both setup scripts standardize OSC on Python 3.10 and reject other Python minor
+Both setup scripts standardize OSC on Python 3.9.18 and reject other Python
 versions before rebuilding their repo-local environments.
 
 OSC examples:
 
 ```bash
-PYTHON_BIN=/path/to/python3.10 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
+PYTHON_BIN=/path/to/python3.9 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
 ```
 
@@ -42,27 +42,27 @@ bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
 YOLO11 on the default input directory:
 
 ```bash
-python3.10 question_4_yolo11_yolov12/demo_yolo11.py
+python3.9 question_4_yolo11_yolov12/demo_yolo11.py
 ```
 
 YOLO11 on one local image:
 
 ```bash
-python3.10 question_4_yolo11_yolov12/demo_yolo11.py \
+python3.9 question_4_yolo11_yolov12/demo_yolo11.py \
   --source question_4_yolo11_yolov12/inputs/yolo11/000000001000.jpg
 ```
 
 YOLO11 on a URL:
 
 ```bash
-python3.10 question_4_yolo11_yolov12/demo_yolo11.py \
+python3.9 question_4_yolo11_yolov12/demo_yolo11.py \
   --source https://ultralytics.com/images/bus.jpg
 ```
 
 YOLOv12 on the default input directory:
 
 ```bash
-python3.10 question_4_yolo11_yolov12/demo_yolov12.py
+python3.9 question_4_yolo11_yolov12/demo_yolov12.py
 ```
 
 By default, `demo_yolov12.py` expects the repo-local YOLOv12 checkout at
@@ -71,7 +71,7 @@ By default, `demo_yolov12.py` expects the repo-local YOLOv12 checkout at
 YOLOv12 on one local image with CPU inference:
 
 ```bash
-python3.10 question_4_yolo11_yolov12/demo_yolov12.py \
+python3.9 question_4_yolo11_yolov12/demo_yolov12.py \
   --source question_4_yolo11_yolov12/inputs/yolov12/000000007795.jpg \
   --device cpu
 ```
@@ -79,7 +79,7 @@ python3.10 question_4_yolo11_yolov12/demo_yolov12.py \
 YOLOv12 on a URL with CPU inference:
 
 ```bash
-python3.10 question_4_yolo11_yolov12/demo_yolov12.py \
+python3.9 question_4_yolo11_yolov12/demo_yolov12.py \
   --source https://ultralytics.com/images/bus.jpg \
   --device cpu
 ```
@@ -101,8 +101,9 @@ python3.10 question_4_yolo11_yolov12/demo_yolov12.py \
 
 - Use `--device cpu` on CPU-only systems or when you want to avoid GPU
   inference.
-- Python 3.10 is the supported OSC baseline for both YOLO11 and YOLOv12.
+- Python 3.9.18 is the supported OSC baseline for both YOLO11 and YOLOv12.
 - Supported input suffixes are `.jpg`, `.jpeg`, `.png`, `.bmp`, and `.webp`.
 - `INSTALL_FLASH_ATTN=1 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh`
-  is not part of the supported Python 3.10 OSC baseline; only revisit it after
-  separately revalidating a Python 3.11 CUDA stack.
+  is not part of the supported Python 3.9.18 OSC baseline; only revisit it
+  after separately revalidating the YOLOv12 CUDA stack outside this enforced
+  baseline.

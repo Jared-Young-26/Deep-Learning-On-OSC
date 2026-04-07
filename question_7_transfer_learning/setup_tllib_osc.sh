@@ -13,6 +13,8 @@ INSTALL_DETECTRON2="${INSTALL_DETECTRON2:-0}"
 TORCH_INDEX_URL="${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu121}"
 DETECTRON2_PIP_SPEC="${DETECTRON2_PIP_SPEC:-git+https://github.com/facebookresearch/detectron2.git}"
 DETECTRON2_BUILD_NINJA="${DETECTRON2_BUILD_NINJA:-1}"
+DETECTRON2_CC="${DETECTRON2_CC:-}"
+DETECTRON2_CXX="${DETECTRON2_CXX:-}"
 SUPPORTED_PYTHON_VERSION="${SUPPORTED_PYTHON_VERSION:-3.9.18}"
 
 if [[ -z "${PYTHON_BIN}" ]]; then
@@ -22,6 +24,20 @@ if [[ -z "${PYTHON_BIN}" ]]; then
     PYTHON_BIN="python3"
   fi
 fi
+
+compiler_banner() {
+  local compiler="${1:-}"
+  if [[ -z "${compiler}" ]]; then
+    return 0
+  fi
+  "${compiler}" --version 2>/dev/null | head -n 1 || true
+}
+
+compiler_looks_nvhpc() {
+  local banner
+  banner="$(compiler_banner "${1:-}")"
+  [[ "${banner}" == *"NVIDIA"* || "${banner}" == *"NVHPC"* || "${banner}" == *"PGI"* || "${banner}" == *"nvc++"* || "${banner}" == *"nvc "* ]]
+}
 
 # Allow a relative target path at invocation time, then normalize it before the
 # rest of the script reuses the resolved repository location.
@@ -112,7 +128,46 @@ if [[ "${INSTALL_DETECTRON2}" == "1" ]]; then
     CC=clang CXX=clang++ \
       pip install --no-build-isolation "${DETECTRON2_PIP_SPEC}"
   else
-    pip install --no-build-isolation "${DETECTRON2_PIP_SPEC}"
+    # Detectron2 expects a GNU C/C++ toolchain on Linux. OSC shells can expose
+    # NVHPC compilers by default, which cause the noisy warning pattern and
+    # eventual native-extension build failure seen with detectron2.
+    LINUX_CC="${DETECTRON2_CC:-${CC:-}}"
+    LINUX_CXX="${DETECTRON2_CXX:-${CXX:-}}"
+
+    if [[ -z "${LINUX_CC}" ]] && command -v gcc >/dev/null 2>&1; then
+      LINUX_CC="$(command -v gcc)"
+    fi
+    if [[ -z "${LINUX_CXX}" ]] && command -v g++ >/dev/null 2>&1; then
+      LINUX_CXX="$(command -v g++)"
+    fi
+
+    if compiler_looks_nvhpc "${LINUX_CC}" || compiler_looks_nvhpc "${LINUX_CXX}"; then
+      if command -v gcc >/dev/null 2>&1 && command -v g++ >/dev/null 2>&1; then
+        LINUX_CC="$(command -v gcc)"
+        LINUX_CXX="$(command -v g++)"
+      fi
+    fi
+
+    if [[ -z "${LINUX_CC}" || -z "${LINUX_CXX}" ]]; then
+      echo "Error: Detectron2 build on Linux/OSC requires gcc and g++."
+      echo "Set DETECTRON2_CC and DETECTRON2_CXX explicitly, or load a GNU toolchain and rerun."
+      exit 1
+    fi
+
+    if compiler_looks_nvhpc "${LINUX_CC}" || compiler_looks_nvhpc "${LINUX_CXX}"; then
+      echo "Error: Detectron2 build resolved to an NVHPC/PGI compiler, which is unsupported here."
+      echo "Resolved compiler banners:"
+      echo "  CC : $(compiler_banner "${LINUX_CC}")"
+      echo "  CXX: $(compiler_banner "${LINUX_CXX}")"
+      echo "Load a GNU toolchain first, or rerun with:"
+      echo "  DETECTRON2_CC=/path/to/gcc DETECTRON2_CXX=/path/to/g++ bash question_7_transfer_learning/setup_tllib_osc.sh"
+      exit 1
+    fi
+
+    echo "Building detectron2 with CC=${LINUX_CC}"
+    echo "Building detectron2 with CXX=${LINUX_CXX}"
+    CC="${LINUX_CC}" CXX="${LINUX_CXX}" \
+      pip install --no-build-isolation "${DETECTRON2_PIP_SPEC}"
   fi
 fi
 

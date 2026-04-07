@@ -40,6 +40,16 @@ INSTALL_TORCH=1 bash question_7_transfer_learning/setup_tllib_osc.sh
 INSTALL_DETECTRON2=1 bash question_7_transfer_learning/setup_tllib_osc.sh
 ```
 
+On Linux/OSC, the setup script now forces Detectron2 to build with GNU
+`gcc/g++` by default. If your shell exposes NVHPC-style compilers first, rerun
+setup with explicit overrides:
+
+```bash
+DETECTRON2_CC=$(command -v gcc) DETECTRON2_CXX=$(command -v g++) \
+  INSTALL_TORCH=1 INSTALL_DETECTRON2=1 \
+  bash question_7_transfer_learning/setup_tllib_osc.sh
+```
+
 The default upstream clone location is `external/Transfer-Learning-Library`.
 
 ## Doctor Check
@@ -48,6 +58,14 @@ Verify the environment before training:
 
 ```bash
 python3.9 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor
+```
+
+If Q7 fails during readiness, rerun only the TLlib setup step first rather than
+the full assignment:
+
+```bash
+env INSTALL_TORCH=1 INSTALL_DETECTRON2=1 \
+  bash question_7_transfer_learning/setup_tllib_osc.sh
 ```
 
 The doctor mode checks the Python environment, required modules, dataset

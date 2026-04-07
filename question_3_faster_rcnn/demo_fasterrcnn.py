@@ -45,6 +45,34 @@ TF2_ENV_OVERRIDES = {
     "TF_CPP_MIN_LOG_LEVEL": "2",
 }
 
+# The PyTorch upstream entrypoint still calls Pillow's removed FreeTypeFont.getsize()
+# helper on some OSC builds. Run the module through a tiny shim that restores a
+# compatible getsize() implementation before the upstream code imports it.
+INLINE_PYTORCH_SCRIPT = r"""
+import runpy
+import sys
+
+from PIL import ImageFont
+
+
+def compat_getsize(self, text, *args, **kwargs):
+    if hasattr(self, "getbbox"):
+        left, top, right, bottom = self.getbbox(text, *args, **kwargs)
+        return (max(1, right - left), max(1, bottom - top))
+    mask = self.getmask(text, *args, **kwargs)
+    return mask.size
+
+
+for class_name in ("FreeTypeFont", "ImageFont"):
+    font_class = getattr(ImageFont, class_name, None)
+    if font_class is not None and not hasattr(font_class, "getsize"):
+        font_class.getsize = compat_getsize
+
+
+sys.argv = ["pytorch.FasterRCNN", *sys.argv[1:]]
+runpy.run_module("pytorch.FasterRCNN", run_name="__main__")
+"""
+
 # The upstream TF2 path expects a different entrypoint shape than this file uses.
 # This embedded script keeps the TF2 invocation self-contained and preserves H5
 # loading on current Python and Pillow environments.
@@ -794,12 +822,12 @@ def build_command(
 ) -> list[str]:
     """Build the upstream inference command."""
     if framework == "pytorch":
-        # The PyTorch repo exposes a module entrypoint and encodes the prediction
-        # mode directly in the CLI flag we pass.
+        # Run the upstream PyTorch module through a Pillow compatibility shim so
+        # newer FreeTypeFont builds on OSC still support the text renderer.
         command = [
             python_bin,
-            "-m",
-            "pytorch.FasterRCNN",
+            "-c",
+            INLINE_PYTORCH_SCRIPT,
             f"--load-from={weights}",
         ]
         # Pass the backbone only when one was resolved.

@@ -46,6 +46,32 @@ loads `cuda`, and runs the requested command after the GPU allocation starts.
 The interactive launcher starts an `salloc ... srun --pty /bin/bash` shell with
 the same default GPU request.
 
+## One-Command OSC Run
+
+Use the repo-root orchestrator when you want questions 3 through 7 to run in
+order from one command:
+
+```bash
+bash run_assignment_osc.sh --account <OSC_ACCOUNT> --time 16:00:00
+```
+
+By default, this script:
+
+- self-submits one GPU batch job through `osc_gpu_batch.sh` when you launch it from an OSC login node
+- runs the staged pipeline directly when you are already inside a Slurm allocation
+- reuses existing environments, model downloads, datasets, and heavy output sentinels when they already exist
+- defaults question 7 to the `benchmark` profile
+
+Useful flags:
+
+- `--q7-profile smoke` switches question 7 to the smoke profile
+- `--force` reruns heavy setup, training, and Q7 pipeline stages even when sentinels already exist
+- `--cluster`, `--nodes`, `--gpus-per-node`, and `--job-name` are forwarded to `osc_gpu_batch.sh`
+- `--dry-run` prints either the self-submit command or the ordered inner stage plan without executing it
+
+The script uses `--inside-allocation` internally after self-submit. You
+normally do not need to pass that flag yourself.
+
 ## Modules
 
 ### [Faster R-CNN Object Detection](question_3_faster_rcnn/README.md)

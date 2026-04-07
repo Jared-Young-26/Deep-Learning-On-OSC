@@ -16,7 +16,8 @@ Upstream references:
 - `question_7_transfer_learning/setup_tllib_osc.sh` clones TLlib, creates the
   repo-local environment, and installs the baseline dependencies.
 - `question_7_transfer_learning/run_tllib_osc.sh` runs the default end-to-end
-  helper flow: doctor check first, then the full pipeline.
+  helper flow: doctor check first, then the smoke-profile full pipeline unless
+  `PROFILE=benchmark` is set.
 - `question_7_transfer_learning/demo_tllib_object_detection.py` exposes the
   wrapper's individual modes: `doctor`, `prepare-datasets`, `source-only`,
   `d-adapt`, `visualize`, `report`, and `full-pipeline`.
@@ -84,15 +85,15 @@ python3.9 question_7_transfer_learning/demo_tllib_object_detection.py \
 Run the helper script on a prepared environment:
 
 ```bash
-bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
+bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- \
   bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
-Run the helper with a smoke profile instead:
+Run the helper with the benchmark profile instead:
 
 ```bash
-bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- \
-  env PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
+bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
+  env PROFILE=benchmark bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
 Force a fresh rerun:

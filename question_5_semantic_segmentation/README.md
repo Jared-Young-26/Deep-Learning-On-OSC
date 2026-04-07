@@ -90,6 +90,7 @@ bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
   question_5_semantic_segmentation/train_isaid_seg.py \
   --repo-dir external/ultralytics \
   --device 0 \
+  --epochs 20 \
   --imgsz 1024 \
   --batch 1 \
   --workers 0 \
@@ -99,7 +100,7 @@ bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
 Default training settings are:
 
 - model: `yolo11s-seg.pt`
-- epochs: `50`
+- epochs: `20`
 - imgsz: `1024`
 - batch: `1`
 - workers: `0`

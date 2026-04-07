@@ -25,7 +25,7 @@ CLUSTER=""
 NODES="1"
 GPUS_PER_NODE="1"
 JOB_NAME=""
-Q7_PROFILE="benchmark"
+Q7_PROFILE="smoke"
 FORCE="0"
 DRY_RUN="0"
 INSIDE_ALLOCATION="0"
@@ -45,7 +45,7 @@ Options:
   --nodes <count>            Slurm node count. Default: 1.
   --gpus-per-node <count>    GPUs per node. Default: 1.
   --job-name <name>          Optional Slurm job name forwarded to osc_gpu_batch.sh.
-  --q7-profile <profile>     TLlib profile: benchmark or smoke. Default: benchmark.
+  --q7-profile <profile>     TLlib profile: benchmark or smoke. Default: smoke.
   --force                    Rerun heavy setup/train/pipeline stages even when sentinels exist.
   --dry-run                  Print the submit command or inner stage plan without executing it.
   --inside-allocation        Internal flag used after self-submit; runs the stage pipeline directly.
@@ -303,6 +303,7 @@ stage_q5_training() {
     "${Q4_ULTRALYTICS_PYTHON}" question_5_semantic_segmentation/train_isaid_seg.py
     --repo-dir external/ultralytics
     --device 0
+    --epochs 20
     --imgsz 1024
     --batch 1
     --workers 0

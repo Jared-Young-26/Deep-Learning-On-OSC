@@ -61,11 +61,11 @@ By default, this script:
 - runs the staged pipeline directly when you are already inside a Slurm allocation
 - reuses existing environments, model downloads, datasets, and heavy output sentinels when they already exist
 - resumes question 5 training from `question_5_semantic_segmentation/runs/segment/train/isaid_yolo11s_seg/weights/last.pt` when `best.pt` is missing but `last.pt` exists
-- defaults question 7 to the `benchmark` profile
+- defaults question 7 to the `smoke` profile
 
 Useful flags:
 
-- `--q7-profile smoke` switches question 7 to the smoke profile
+- `--q7-profile benchmark` switches question 7 to the fuller benchmark profile
 - `--force` reruns heavy setup, training, and Q7 pipeline stages even when sentinels already exist
 - `--cluster`, `--nodes`, `--gpus-per-node`, and `--job-name` are forwarded to `osc_gpu_batch.sh`
 - `--dry-run` prints either the self-submit command or the ordered inner stage plan without executing it
@@ -107,7 +107,7 @@ Bootstraps iSAID data, fine-tunes YOLO11 segmentation, and exports semantic
 masks for aerial imagery.
 
 - Setup: `bash question_5_semantic_segmentation/setup_yolo11_osc.sh`
-- OSC GPU train: `bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- external/ultralytics/.venv/bin/python question_5_semantic_segmentation/train_isaid_seg.py --repo-dir external/ultralytics --device 0 --imgsz 1024 --batch 1 --workers 0 --exist-ok`
+- OSC GPU train: `bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- external/ultralytics/.venv/bin/python question_5_semantic_segmentation/train_isaid_seg.py --repo-dir external/ultralytics --device 0 --epochs 20 --imgsz 1024 --batch 1 --workers 0 --exist-ok`
 - Manual resume: `external/ultralytics/.venv/bin/python question_5_semantic_segmentation/train_isaid_seg.py --repo-dir external/ultralytics --device 0 --resume`
 - Demo: `external/ultralytics/.venv/bin/python question_5_semantic_segmentation/demo_yolo_segmentation.py --repo-dir external/ultralytics --device cpu`
 
@@ -126,5 +126,6 @@ dataset preparation, training, and reporting.
 
 - Setup: `bash question_7_transfer_learning/setup_tllib_osc.sh`
 - Doctor: `python3.9 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor`
-- OSC GPU full run: `bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- bash question_7_transfer_learning/run_tllib_osc.sh`
+- OSC GPU default run: `bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- bash question_7_transfer_learning/run_tllib_osc.sh`
+- OSC GPU benchmark run: `bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- env PROFILE=benchmark bash question_7_transfer_learning/run_tllib_osc.sh`
 - CPU smoke validation: `ALLOW_CPU=1 PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh`

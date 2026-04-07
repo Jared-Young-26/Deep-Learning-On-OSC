@@ -56,10 +56,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=str(DEFAULT_DATASET_YAML),
         help="Dataset YAML. Defaults to the repo-local iSAID segmentation YAML.",
     )
-    parser.add_argument("--epochs", type=int, default=50, help="Number of training epochs.")
+    parser.add_argument("--epochs", type=int, default=20, help="Number of training epochs.")
     parser.add_argument("--imgsz", type=int, default=1024, help="Training image size.")
     parser.add_argument("--batch", type=int, default=1, help="Batch size.")
     parser.add_argument("--workers", type=int, default=0, help="Data loader workers.")
+    parser.add_argument(
+        "--plots",
+        action="store_true",
+        help="Write Ultralytics training and validation plot artifacts.",
+    )
     parser.add_argument("--device", default="", help="Device string such as 0, 0,1, or cpu.")
     parser.add_argument(
         "--project",
@@ -136,6 +141,7 @@ def main() -> int:
         print(f"Image size:    {args.imgsz}")
         print(f"Batch:         {args.batch}")
         print(f"Workers:       {args.workers}")
+        print(f"Plots:         {'yes' if args.plots else 'no'}")
         print(f"Output alias:  {output_model}")
         return 0
 
@@ -162,6 +168,31 @@ def main() -> int:
         )
 
     from ultralytics import YOLO
+    from ultralytics.models.yolo.segment.train import SegmentationTrainer
+    from ultralytics.utils import LOCAL_RANK, LOGGER, RANK
+
+    class OSCSafeSegmentationTrainer(SegmentationTrainer):
+        """Cap validation batch size on OSC to reduce host-memory pressure."""
+
+        def check_resume(self, overrides):
+            super().check_resume(overrides)
+            if self.resume and "epochs" in overrides:
+                self.args.epochs = overrides["epochs"]
+
+        def _build_train_pipeline(self):
+            super()._build_train_pipeline()
+            batch_size = self.batch_size // max(self.world_size, 1)
+            self.test_loader = self.get_dataloader(
+                self.data.get("val") or self.data.get("test"),
+                batch_size=batch_size,
+                rank=LOCAL_RANK,
+                mode="val",
+            )
+            if RANK in {-1, 0}:
+                LOGGER.info(
+                    "Using validation batch size %s on OSC to avoid the default doubled val batch.",
+                    batch_size,
+                )
 
     if args.resume and not resume_checkpoint.exists():
         raise FileNotFoundError(
@@ -190,7 +221,7 @@ def main() -> int:
         "project": str(project_dir),
         "name": args.name,
         "exist_ok": args.exist_ok,
-        "plots": True,
+        "plots": args.plots,
         "task": "segment",
     }
     # Pass the device only when the caller explicitly set one.
@@ -200,7 +231,7 @@ def main() -> int:
         train_kwargs["resume"] = str(resume_checkpoint)
 
     # Launch training with the resolved configuration.
-    model.train(**train_kwargs)
+    model.train(trainer=OSCSafeSegmentationTrainer, **train_kwargs)
 
     # Prefer the best checkpoint, then fall back to the last checkpoint.
     best_checkpoint = model.trainer.best if model.trainer.best.exists() else model.trainer.last

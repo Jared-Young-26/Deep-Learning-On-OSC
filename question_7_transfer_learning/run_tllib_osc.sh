@@ -8,7 +8,7 @@ PREFLIGHT_SCRIPT="${REPO_ROOT}/osc_gpu_preflight.sh"
 PYTHON_BIN="${PYTHON_BIN:-${TLIB_REPO_DIR}/.venv/bin/python}"
 ALLOW_CPU="${ALLOW_CPU:-0}"
 FORCE="${FORCE:-0}"
-PROFILE="${PROFILE:-benchmark}"
+PROFILE="${PROFILE:-smoke}"
 
 # Stop early if setup has not created the repository-local Python entrypoint yet.
 if [[ ! -x "${PYTHON_BIN}" ]]; then

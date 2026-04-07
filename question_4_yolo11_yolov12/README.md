@@ -39,30 +39,36 @@ bash question_4_yolo11_yolov12/setup_yolov12_osc.sh
 
 ## Run
 
-YOLO11 on the default input directory:
+YOLO11 on OSC with one requested GPU:
 
 ```bash
-python3.9 question_4_yolo11_yolov12/demo_yolo11.py
+bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- \
+  python3.9 question_4_yolo11_yolov12/demo_yolo11.py \
+  --device 0
 ```
 
-YOLO11 on one local image:
+YOLO11 on one local image with CPU inference:
 
 ```bash
 python3.9 question_4_yolo11_yolov12/demo_yolo11.py \
-  --source question_4_yolo11_yolov12/inputs/yolo11/000000001000.jpg
+  --source question_4_yolo11_yolov12/inputs/yolo11/000000001000.jpg \
+  --device cpu
 ```
 
-YOLO11 on a URL:
+YOLO11 on a URL with CPU inference:
 
 ```bash
 python3.9 question_4_yolo11_yolov12/demo_yolo11.py \
-  --source https://ultralytics.com/images/bus.jpg
+  --source https://ultralytics.com/images/bus.jpg \
+  --device cpu
 ```
 
-YOLOv12 on the default input directory:
+YOLOv12 on OSC with one requested GPU:
 
 ```bash
-python3.9 question_4_yolo11_yolov12/demo_yolov12.py
+bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- \
+  python3.9 question_4_yolo11_yolov12/demo_yolov12.py \
+  --device 0
 ```
 
 By default, `demo_yolov12.py` expects the repo-local YOLOv12 checkout at
@@ -99,6 +105,8 @@ python3.9 question_4_yolo11_yolov12/demo_yolov12.py \
 
 ## Environment Notes
 
+- On OSC, request the GPU node first with `bash osc_gpu_batch.sh` or open one
+  with `bash osc_gpu_interactive.sh` before using `--device 0`.
 - Use `--device cpu` on CPU-only systems or when you want to avoid GPU
   inference.
 - Python 3.9.18 is the supported OSC baseline for both YOLO11 and YOLOv12.

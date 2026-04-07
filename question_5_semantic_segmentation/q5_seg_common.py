@@ -53,6 +53,7 @@ DEFAULT_ISAID_DATASET_PAGE_URL = "https://captain-whu.github.io/iSAID/dataset.ht
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
+OSC_GPU_BATCH_LAUNCHER_NAME = "osc_gpu_batch.sh"
 
 ISAID_CLASS_NAMES = {
     0: "plane",
@@ -177,6 +178,14 @@ def resolve_python(repo_dir, requested_python) -> str:
     return sys.executable
 
 
+def device_requests_gpu(device) -> bool:
+    """Return True when the device selection asks for CUDA."""
+    if device is None:
+        return False
+    normalized = str(device).strip().lower()
+    return bool(normalized) and normalized != "cpu"
+
+
 def resolve_python_minor_version(python_executable) -> str:
     """Ask one interpreter for its major.minor version."""
     completed = subprocess.run(
@@ -196,6 +205,53 @@ def resolve_python_minor_version(python_executable) -> str:
             f"stderr: {stderr}"
         )
     return completed.stdout.strip()
+
+
+def runtime_cuda_available(python_executable) -> bool:
+    """Return True when the target runtime reports CUDA availability."""
+    completed = subprocess.run(
+        [
+            str(python_executable),
+            "-c",
+            "import torch; print('1' if getattr(torch.cuda, 'is_available', lambda: False)() else '0')",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return completed.returncode == 0 and completed.stdout.strip() == "1"
+
+
+def osc_gpu_batch_example(script_path, *extra_args) -> str:
+    """Build one OSC GPU launcher example command."""
+    parts = [
+        "bash",
+        OSC_GPU_BATCH_LAUNCHER_NAME,
+        "--account",
+        "<OSC_ACCOUNT>",
+        "--time",
+        "01:00:00",
+        "--",
+        "python3.9",
+        script_path,
+        *extra_args,
+    ]
+    return " ".join(parts)
+
+
+def ensure_gpu_device_ready(device, python_executable, script_path, *extra_args) -> None:
+    """Stop early when the caller explicitly requested CUDA without a GPU allocation."""
+    if not device_requests_gpu(device):
+        return
+    if runtime_cuda_available(python_executable):
+        return
+    example = osc_gpu_batch_example(script_path, *extra_args)
+    raise RuntimeError(
+        "CUDA was requested explicitly, but the target runtime does not report an available GPU.\n"
+        "On OSC, request a GPU node first instead of launching this command from a login or CPU-only node.\n"
+        f"Example: {example}\n"
+        "Use --device cpu only when you intend to run this workflow on CPU."
+    )
 
 
 def ensure_supported_repo_python_version(python_executable) -> str:

@@ -132,7 +132,7 @@ Next steps:
   2) source .venv/bin/activate
   3) cd "${SCRIPT_DIR}"
   4) python3.9 demo_tllib_object_detection.py --repo-dir "${REPO_DIR}" --mode doctor
-  5) bash run_tllib_osc.sh
+  5) bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 04:00:00 -- bash run_tllib_osc.sh
 
 Optional:
   INSTALL_TORCH=1 bash setup_tllib_osc.sh

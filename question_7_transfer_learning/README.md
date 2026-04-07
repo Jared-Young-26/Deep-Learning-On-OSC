@@ -84,13 +84,15 @@ python3.9 question_7_transfer_learning/demo_tllib_object_detection.py \
 Run the helper script on a prepared environment:
 
 ```bash
-bash question_7_transfer_learning/run_tllib_osc.sh
+bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
+  bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
 Run the helper with a smoke profile instead:
 
 ```bash
-PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
+bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- \
+  env PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
 Force a fresh rerun:
@@ -110,7 +112,8 @@ ALLOW_CPU=1 PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
 Run the benchmark pipeline directly through the Python wrapper:
 
 ```bash
-python3.9 question_7_transfer_learning/demo_tllib_object_detection.py \
+bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
+  python3.9 question_7_transfer_learning/demo_tllib_object_detection.py \
   --mode full-pipeline \
   --profile benchmark \
   --download-datasets \
@@ -141,8 +144,9 @@ Benchmark runs write to:
 - `run_tllib_osc.sh` uses the TLlib virtualenv Python at
   `external/Transfer-Learning-Library/.venv/bin/python` by default.
 - Python 3.9.18 is the only supported OSC interpreter for this workflow.
+- On OSC, the benchmark path should run inside a GPU allocation requested by
+  `bash osc_gpu_batch.sh` or from a shell opened by `bash osc_gpu_interactive.sh`.
 - Benchmark runs are intended for CUDA-enabled systems; the helper refuses
   benchmark execution on CPU unless `ALLOW_CPU=1` is set.
 - `INSTALL_TORCH`, `INSTALL_DETECTRON2`, `PROFILE`, `ALLOW_CPU`, and `FORCE`
   are the primary environment variables exposed by the shell helpers.
-

@@ -14,6 +14,7 @@ from q5_seg_common import (
     DEFAULT_PRETRAINED_MODEL,
     DEFAULT_REPO_DIR,
     DEFAULT_TRAIN_PROJECT_DIR,
+    ensure_gpu_device_ready,
     ensure_parent,
     ensure_ultralytics_import,
     ensure_ultralytics_repo,
@@ -126,6 +127,16 @@ def main() -> int:
 
     # Re-exec inside the repository-local environment if the current Python differs.
     maybe_reexec_with_repo_python(repo_dir, args.python, REEXEC_MARKER)
+
+    ensure_gpu_device_ready(
+        args.device,
+        sys.executable,
+        "question_5_semantic_segmentation/train_isaid_seg.py",
+        "--repo-dir",
+        "external/ultralytics",
+        "--device",
+        "0",
+    )
 
     # Import Ultralytics only after the correct environment is active.
     ensure_ultralytics_import(repo_dir)

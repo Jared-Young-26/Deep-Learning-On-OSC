@@ -39,6 +39,7 @@ DEFAULT_WEIGHTS = {
     "tf2": "fasterrcnn_tf2.h5",
 }
 SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
+OSC_GPU_BATCH_LAUNCHER_NAME = "osc_gpu_batch.sh"
 TF2_ENV_OVERRIDES = {
     "CUDA_VISIBLE_DEVICES": "-1",
     "TF_CPP_MIN_LOG_LEVEL": "2",
@@ -344,6 +345,14 @@ def tf2_runtime_available(python_bin) -> bool:
     return result.returncode == 0
 
 
+def osc_gpu_batch_example() -> str:
+    """Build one OSC GPU launcher example command."""
+    return (
+        f"bash {OSC_GPU_BATCH_LAUNCHER_NAME} --account <OSC_ACCOUNT> --time 01:00:00 -- "
+        "python3.9 question_3_faster_rcnn/demo_fasterrcnn.py --framework pytorch --mode to-file"
+    )
+
+
 def resolve_framework(requested_framework, python_bin, repo_dir) -> str:
     """Resolve the implementation to run from the prepared environment."""
     if requested_framework == "pytorch":
@@ -357,6 +366,8 @@ def resolve_framework(requested_framework, python_bin, repo_dir) -> str:
             raise RuntimeError(
                 "The upstream PyTorch FasterRCNN implementation is CUDA-only and "
                 f"cannot run in {python_bin}.\n"
+                "On OSC, request a GPU node first instead of running the PyTorch path on a login or CPU-only node.\n"
+                f"Example: {osc_gpu_batch_example()}\n"
                 "Use `--framework tf2` if TensorFlow is installed, rerun "
                 "`INSTALL_TF2=1 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh`, "
                 "or run the PyTorch path on a CUDA-enabled system."
@@ -384,6 +395,7 @@ def resolve_framework(requested_framework, python_bin, repo_dir) -> str:
         f"{python_bin}.\n"
         "The upstream PyTorch path requires CUDA, and the TF2 fallback must "
         "import numpy, matplotlib.pyplot, and tensorflow together.\n"
+        f"If you want the PyTorch path on OSC, request the GPU node first. Example: {osc_gpu_batch_example()}\n"
         f"Remove {repo_dir / '.venv'} and rerun "
         "`bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh`, or run on a "
         "CUDA-enabled system."

@@ -18,6 +18,7 @@ from q5_seg_common import (
     DEFAULT_PRETRAINED_MODEL,
     DEFAULT_REPO_DIR,
     class_color,
+    ensure_gpu_device_ready,
     ensure_parent,
     ensure_ultralytics_import,
     ensure_ultralytics_repo,
@@ -769,6 +770,15 @@ def main() -> int:
 
     # Re-enter under the repository interpreter before importing runtime dependencies.
     maybe_reexec_with_repo_python(repo_dir, args.python, REEXEC_MARKER)
+    ensure_gpu_device_ready(
+        args.device,
+        sys.executable,
+        "question_5_semantic_segmentation/demo_yolo_segmentation.py",
+        "--repo-dir",
+        "external/ultralytics",
+        "--device",
+        "0",
+    )
     ensure_ultralytics_import(repo_dir)
 
     # Import the runtime libraries only after the interpreter is finalized.

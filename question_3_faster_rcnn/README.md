@@ -37,6 +37,15 @@ INSTALL_TF2=0 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh
 
 ## Run
 
+OSC GPU batch example for the CUDA-backed PyTorch path:
+
+```bash
+bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- \
+  python3.9 question_3_faster_rcnn/demo_fasterrcnn.py \
+  --framework pytorch \
+  --mode to-file
+```
+
 Default run on the built-in sample URL. This uses `--framework auto`, which
 prefers PyTorch on CUDA nodes and falls back to TF2 otherwise:
 
@@ -94,6 +103,8 @@ python3.9 question_3_faster_rcnn/demo_fasterrcnn.py \
 - The wrapper defaults to `auto` and resolves to `pytorch` when CUDA is
   available in the repo-local environment, otherwise `tf2` when TensorFlow is
   installed.
+- On OSC, the PyTorch path should be launched through `bash osc_gpu_batch.sh`
+  or from a shell opened by `bash osc_gpu_interactive.sh`.
 - Python 3.9.18 is the only supported OSC interpreter for this workflow.
 - On OSC Jupyter/login-style CPU sessions, `framework: tf2` is expected because
   those sessions typically do not expose a CUDA device.

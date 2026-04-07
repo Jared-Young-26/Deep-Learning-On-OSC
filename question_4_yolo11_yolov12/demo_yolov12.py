@@ -21,6 +21,7 @@ DEFAULT_PROJECT_DIR = QUESTION_DIR / "runs" / "detect"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
+OSC_GPU_BATCH_LAUNCHER_NAME = "osc_gpu_batch.sh"
 
 # The inline script keeps the actual model invocation inside the target
 # environment while the outer file handles path resolution and artifact copying.
@@ -109,6 +110,43 @@ def ensure_supported_runtime_python(python_bin) -> str:
             "Rebuild external/yolov12/.venv with Python 3.9.18 or pass --python to a Python 3.9.18 interpreter."
         )
     return version
+
+
+def device_requests_gpu(device) -> bool:
+    """Return True when the selected device expects CUDA."""
+    normalized = str(device).strip().lower()
+    return bool(normalized) and normalized != "cpu"
+
+
+def runtime_cuda_available(python_bin) -> bool:
+    """Return True when the target runtime reports CUDA availability."""
+    result = subprocess.run(
+        [
+            python_bin,
+            "-c",
+            "import torch; print('1' if getattr(torch.cuda, 'is_available', lambda: False)() else '0')",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0 and result.stdout.strip() == "1"
+
+
+def ensure_gpu_device_ready(python_bin, device) -> None:
+    """Fail fast when the caller explicitly requested CUDA without a GPU node."""
+    if not device_requests_gpu(device):
+        return
+    if runtime_cuda_available(python_bin):
+        return
+    raise RuntimeError(
+        "CUDA was requested explicitly, but the target runtime does not report an available GPU.\n"
+        "On OSC, request a GPU node first instead of running this command from a login or CPU-only node.\n"
+        "Example: "
+        f"bash {OSC_GPU_BATCH_LAUNCHER_NAME} --account <OSC_ACCOUNT> --time 01:00:00 -- "
+        "python3.9 question_4_yolo11_yolov12/demo_yolov12.py --device 0\n"
+        "Use --device cpu only when you intend to run inference on CPU."
+    )
 
 
 def resolve_project(repo_dir, project) -> Path:
@@ -377,6 +415,7 @@ def main() -> int:
     # Resolve every path before launching YOLO so the artifact copy step stays deterministic.
     python_bin = resolve_python(repo_dir, args.python)
     ensure_supported_runtime_python(python_bin)
+    ensure_gpu_device_ready(python_bin, args.device)
     project_dir = resolve_project(repo_dir, args.project)
     resolved_source, source_path = resolve_source(args.source)
     output_dir = resolve_output_dir(args.output_dir)

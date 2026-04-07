@@ -83,5 +83,6 @@ Next steps:
   1) cd "${REPO_DIR}"
   2) source .venv/bin/activate
   3) cd "${SCRIPT_DIR}"
-  4) python3.9 demo_yolo11.py --repo-dir "${REPO_DIR}"
+  4) bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 01:00:00 -- python3.9 demo_yolo11.py --repo-dir "${REPO_DIR}" --device 0
+     # Use --device cpu instead when you want CPU inference explicitly.
 EOF2

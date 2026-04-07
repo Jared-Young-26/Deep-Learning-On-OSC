@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TLIB_REPO_DIR="${TLIB_REPO_DIR:-${REPO_ROOT}/external/Transfer-Learning-Library}"
+PREFLIGHT_SCRIPT="${REPO_ROOT}/osc_gpu_preflight.sh"
 PYTHON_BIN="${PYTHON_BIN:-${TLIB_REPO_DIR}/.venv/bin/python}"
 ALLOW_CPU="${ALLOW_CPU:-0}"
 FORCE="${FORCE:-0}"
@@ -16,11 +17,19 @@ if [[ ! -x "${PYTHON_BIN}" ]]; then
   exit 1
 fi
 
+if [[ "${ALLOW_CPU}" != "1" ]]; then
+  # Require a real OSC GPU allocation before benchmark-style execution.
+  # shellcheck disable=SC1090
+  source "${PREFLIGHT_SCRIPT}"
+  osc_require_gpu_allocation "question_7_transfer_learning/run_tllib_osc.sh"
+fi
+
 DEVICE="$("${PYTHON_BIN}" -c "import torch; print('cuda' if torch.cuda.is_available() else 'cpu')")"
 # Require CUDA by default unless CPU execution was requested explicitly.
 if [[ "${DEVICE}" != "cuda" && "${ALLOW_CPU}" != "1" ]]; then
   echo "Error: CUDA is not available in ${PYTHON_BIN}."
-  echo "Run this benchmark helper on an OSC GPU node, or set ALLOW_CPU=1 to override."
+  echo "A GPU allocation exists, but the TLlib runtime still resolved to CPU."
+  echo "Rebuild the environment on the allocated node, or set ALLOW_CPU=1 only when you want CPU validation."
   exit 2
 fi
 

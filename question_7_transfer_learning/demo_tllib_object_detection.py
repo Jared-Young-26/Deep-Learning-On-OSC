@@ -42,6 +42,7 @@ DEFAULT_BENCHMARK_VISUALIZATION_ROOT = QUESTION_DIR / "visualizations" / "voc2cl
 DEFAULT_BENCHMARK_SUMMARY_DIR = QUESTION_DIR / "outputs" / "voc2clipart_benchmark"
 REQUIRED_MODULES = ("detectron2", "timm")
 SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
+OSC_GPU_BATCH_LAUNCHER_NAME = "osc_gpu_batch.sh"
 REQUIRED_DATASET_SUBPATHS = (
     Path("Annotations"),
     Path("JPEGImages"),
@@ -257,6 +258,31 @@ def ensure_supported_runtime_python(python_bin) -> str:
         )
         raise RuntimeError("\n".join(details))
     return version
+
+
+def runtime_cuda_available(python_bin, env_summary) -> bool:
+    """Return True when the target runtime reports CUDA availability."""
+    if env_summary.get("torch", "missing") == "missing":
+        return False
+    try:
+        return (
+            run_python_probe(
+                python_bin,
+                "import torch; print('1' if torch.cuda.is_available() else '0')",
+            )
+            == "1"
+        )
+    except subprocess.CalledProcessError:
+        return False
+
+
+def osc_gpu_batch_example() -> str:
+    """Build one OSC GPU launcher example command."""
+    return (
+        f"bash {OSC_GPU_BATCH_LAUNCHER_NAME} --account <OSC_ACCOUNT> --time 01:00:00 -- "
+        "python3.9 question_7_transfer_learning/demo_tllib_object_detection.py "
+        "--mode full-pipeline --profile benchmark --download-datasets --device cuda"
+    )
 
 
 def validate_python_environment(python_bin) -> None:
@@ -1042,21 +1068,22 @@ def resolve_model_device(
     # If torch is missing or fails to import, fall back to CPU deterministically.
     """Pick the runtime device to use."""
     # Respect an explicit device choice first.
-    if requested_device != "auto":
+    if requested_device == "cpu":
         return requested_device
+    if requested_device == "cuda":
+        if runtime_cuda_available(python_bin, env_summary):
+            return "cuda"
+        raise RuntimeError(
+            "CUDA was requested explicitly, but the target runtime does not report an available GPU.\n"
+            "On OSC, request a GPU node first instead of running the TLlib pipeline from a login or CPU-only node.\n"
+            f"Example: {osc_gpu_batch_example()}\n"
+            "Use --device cpu only when you intend to run the pipeline on CPU."
+        )
     torch_version = env_summary.get("torch", "missing")
     # Without torch installed, the safest fallback is CPU.
     if torch_version == "missing":
         return "cpu"
-    try:
-        # Ask torch directly whether CUDA is available in the target environment.
-        return run_python_probe(
-            python_bin,
-            "import torch; print('cuda' if torch.cuda.is_available() else 'cpu')",
-        )
-    except subprocess.CalledProcessError:
-        # Fall back to CPU if the probe itself fails.
-        return "cpu"
+    return "cuda" if runtime_cuda_available(python_bin, env_summary) else "cpu"
 
 
 def build_dataset_paths_from_root(dataset_root) -> dict[str, Path]:

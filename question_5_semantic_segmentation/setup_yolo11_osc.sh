@@ -198,7 +198,7 @@ Next steps:
      ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/bootstrap_isaid_seg.py" --repo-dir "${REPO_DIR}" --download-dataset
 
   2) Fine-tune on iSAID and save question_5_semantic_segmentation/models/isaid_seg/best.pt:
-     ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/train_isaid_seg.py" --repo-dir "${REPO_DIR}"
+     bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 04:00:00 -- ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/train_isaid_seg.py" --repo-dir "${REPO_DIR}" --device 0
 
   3) Run the forward-only segmentation demo on your satellite images:
      ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/demo_yolo_segmentation.py" --repo-dir "${REPO_DIR}" --device cpu

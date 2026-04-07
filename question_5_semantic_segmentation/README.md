@@ -85,7 +85,8 @@ question_5_semantic_segmentation/datasets/raw/isaid/
 Run training from the repository root:
 
 ```bash
-external/ultralytics/.venv/bin/python \
+bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
+  external/ultralytics/.venv/bin/python \
   question_5_semantic_segmentation/train_isaid_seg.py \
   --repo-dir external/ultralytics \
   --device 0
@@ -192,6 +193,8 @@ image.
 ## Environment Notes
 
 - Python 3.9.18 is the supported OSC baseline for this workflow.
+- On OSC, launch GPU training through `bash osc_gpu_batch.sh` or from a shell
+  opened by `bash osc_gpu_interactive.sh`.
 - The first bootstrap run downloads several gigabytes of dataset assets and can
   take time to extract and convert.
 - Setup and inference work on CPU. Full training is best on a CUDA-capable

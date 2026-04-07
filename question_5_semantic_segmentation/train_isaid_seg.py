@@ -190,11 +190,18 @@ def main() -> int:
 
     best_resume_checkpoint = run_dir / "weights" / "best.pt"
 
+    def load_trusted_checkpoint(checkpoint_path: Path) -> dict:
+        """Load one locally generated training checkpoint across Torch defaults."""
+        try:
+            return torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        except TypeError:
+            return torch.load(checkpoint_path, map_location="cpu")
+
     def completed_epochs(checkpoint_path: Path) -> int | None:
         """Return the 1-based completed epoch count stored in one checkpoint."""
         if not checkpoint_path.exists():
             return None
-        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        checkpoint = load_trusted_checkpoint(checkpoint_path)
         epoch_index = checkpoint.get("epoch")
         if epoch_index is None:
             return None

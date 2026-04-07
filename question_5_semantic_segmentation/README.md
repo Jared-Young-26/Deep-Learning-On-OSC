@@ -106,6 +106,7 @@ Default training settings are:
 - batch: `1`
 - workers: `0`
 - close_mosaic: `20`
+- per-epoch validation: disabled on OSC; Ultralytics still validates on the final epoch
 
 The reusable checkpoint alias is written to:
 
@@ -223,8 +224,8 @@ image.
 - On OSC, launch GPU training through `bash osc_gpu_batch.sh` or from a shell
   opened by `bash osc_gpu_interactive.sh`.
 - The OSC stability fix is in the Q5 training defaults (`imgsz=768`, `batch=1`,
-  `workers=0`, `close_mosaic=20`) and resume behavior, not in extra Slurm
-  `--mem` flags.
+  `workers=0`, `close_mosaic=20`), reduced validation frequency, and resume
+  behavior, not in extra Slurm `--mem` flags.
 - The first bootstrap run downloads several gigabytes of dataset assets and can
   take time to extract and convert.
 - Setup and inference work on CPU. Full training is best on a CUDA-capable

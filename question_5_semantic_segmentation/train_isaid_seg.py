@@ -71,6 +71,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Write Ultralytics training and validation plot artifacts.",
     )
+    parser.add_argument(
+        "--validate-each-epoch",
+        action="store_true",
+        help="Run Ultralytics validation after every epoch instead of only at the end.",
+    )
     parser.add_argument("--device", default="", help="Device string such as 0, 0,1, or cpu.")
     parser.add_argument(
         "--project",
@@ -149,6 +154,7 @@ def main() -> int:
         print(f"Batch:         {args.batch}")
         print(f"Workers:       {args.workers}")
         print(f"Close mosaic:  {close_mosaic}")
+        print(f"Val each ep:   {'yes' if args.validate_each_epoch else 'no'}")
         print(f"Plots:         {'yes' if args.plots else 'no'}")
         print(f"Output alias:  {output_model}")
         return 0
@@ -216,6 +222,7 @@ def main() -> int:
     print(f"Run dir:      {run_dir}")
     print(f"Resume mode:  {'enabled' if args.resume else 'disabled'}")
     print(f"Close mosaic: {close_mosaic}")
+    print(f"Validate each epoch: {'enabled' if args.validate_each_epoch else 'disabled'}")
 
     # Load the starting checkpoint into a YOLO model object.
     model = YOLO(model_source)
@@ -228,6 +235,7 @@ def main() -> int:
         "batch": args.batch,
         "workers": args.workers,
         "close_mosaic": close_mosaic,
+        "val": args.validate_each_epoch,
         "project": str(project_dir),
         "name": args.name,
         "exist_ok": args.exist_ok,

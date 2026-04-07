@@ -75,8 +75,10 @@ normally do not need to pass that flag yourself.
 
 For the Q5 training stage, the OSC-safe defaults are `imgsz=768`, `batch=1`,
 `workers=0`, and `close_mosaic=20` so the first epoch avoids the highest-memory
-augmentation path. This repository keeps the fix in the training wrapper and
-orchestrator behavior rather than adding Slurm `--mem` flags to the launchers.
+augmentation path. The wrapper also skips per-epoch validation on OSC and only
+validates on the final epoch unless you opt back in. This repository keeps the
+fix in the training wrapper and orchestrator behavior rather than adding Slurm
+`--mem` flags to the launchers.
 
 ## Modules
 

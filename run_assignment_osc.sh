@@ -465,17 +465,25 @@ main() {
   parse_args "$@"
   cd "${REPO_ROOT}"
 
-  if [[ "${INSIDE_ALLOCATION}" != "1" ]] && ! in_slurm_allocation; then
-    [[ -n "${ACCOUNT}" && -n "${TIME_LIMIT}" ]] || fail "--account and --time are required when self-submitting from a login node"
-    submit_self
-    return 0
+  # shellcheck disable=SC1090
+  source "${OSC_GPU_PREFLIGHT}"
+
+  if [[ "${INSIDE_ALLOCATION}" != "1" ]]; then
+    if in_slurm_allocation && osc_slurm_gpu_signals_present && osc_visible_gpu_present; then
+      :
+    else
+      [[ -n "${ACCOUNT}" && -n "${TIME_LIMIT}" ]] || fail "--account and --time are required when self-submitting from a login node or a CPU-only Slurm session"
+      if in_slurm_allocation; then
+        log "INFO" "Current Slurm session does not expose a usable GPU; self-submitting a new GPU job."
+      fi
+      submit_self
+      return 0
+    fi
   fi
 
   if [[ "${DRY_RUN}" == "1" ]]; then
     log "INFO" "Dry run inside allocation mode; skipping GPU preflight."
   else
-    # shellcheck disable=SC1090
-    source "${OSC_GPU_PREFLIGHT}"
     osc_prepare_gpu_environment
     osc_require_gpu_allocation "run_assignment_osc.sh"
   fi

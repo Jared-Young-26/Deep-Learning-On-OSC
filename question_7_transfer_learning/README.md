@@ -108,7 +108,9 @@ from torchvision.models.resnet import BasicBlock, Bottleneck
 ## Profiles
 
 - `smoke` uses small local subsets and shortened schedules for quick
-  validation.
+  validation. It now validates the source-only stage only and skips D-adapt by
+  default because the tiny proposal sets are often too small for stable
+  adaptation batches.
 - `benchmark` uses the full datasets and benchmark output locations.
 
 ## Smoke Profile

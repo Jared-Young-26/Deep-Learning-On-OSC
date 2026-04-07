@@ -57,6 +57,7 @@ new_model_urls = """WEIGHTS_ENUMS = {\n    'resnet18': models.ResNet18_Weights.I
 old_pretrained = """        if model_urls is not None:\n            pretrained_dict = load_state_dict_from_url(model_urls[arch], progress=progress)\n        else:\n            pretrained_dict = WEIGHTS_ENUMS[arch].get_state_dict(progress=progress)\n"""
 new_pretrained = """        pretrained_dict = load_state_dict_from_url(model_urls[arch], progress=progress)\n"""
 model_urls_line = "model_urls = {arch: weights.url for arch, weights in WEIGHTS_ENUMS.items()}"
+all_block_pattern = r"__all__ = \[.*?\]\n"
 
 resnet_text = re.sub(
     r"try:\n\s+from torchvision\.models\.resnet import .*model_urls.*\nexcept ImportError:\n\s+from torchvision\.models\.resnet import .*BasicBlock.*Bottleneck.*\n\s+model_urls = None\n",
@@ -74,24 +75,33 @@ if old_model_urls in resnet_text and model_urls_line not in resnet_text:
     resnet_text = resnet_text.replace(old_model_urls, new_model_urls)
 elif model_urls_line not in resnet_text:
     weights_match = re.search(r"WEIGHTS_ENUMS = \{\n(?:    .+\n)+\}\n", resnet_text)
-    if weights_match is None:
-        raise SystemExit(
-            "Error: TLlib torchvision compatibility verification failed.\n"
-            f"File: {resnet_path}\n"
-            "  - could not locate the WEIGHTS_ENUMS block needed to restore model_urls\n"
-            "First 20 lines:\n"
-            + "\n".join(f"{idx + 1:>4}: {line}" for idx, line in enumerate(resnet_text.splitlines()[:20]))
+    if weights_match is not None:
+        resnet_text = (
+            resnet_text[: weights_match.end()]
+            + "\n"
+            + "# torchvision removed `model_urls`, but several TLlib modules still import it.\n"
+            + "# Recreate the same mapping from the modern weights enums so older TLlib code\n"
+            + "# can keep calling `load_state_dict_from_url(model_urls[arch])`.\n"
+            + model_urls_line
+            + "\n"
+            + resnet_text[weights_match.end():]
         )
-    resnet_text = (
-        resnet_text[: weights_match.end()]
-        + "\n"
-        + "# torchvision removed `model_urls`, but several TLlib modules still import it.\n"
-        + "# Recreate the same mapping from the modern weights enums so older TLlib code\n"
-        + "# can keep calling `load_state_dict_from_url(model_urls[arch])`.\n"
-        + model_urls_line
-        + "\n"
-        + resnet_text[weights_match.end():]
-    )
+    else:
+        all_match = re.search(all_block_pattern, resnet_text, flags=re.DOTALL)
+        if all_match is None:
+            raise SystemExit(
+                "Error: TLlib torchvision compatibility verification failed.\n"
+                f"File: {resnet_path}\n"
+                "  - could not locate an insertion point for the replacement model_urls mapping\n"
+                "First 20 lines:\n"
+                + "\n".join(f"{idx + 1:>4}: {line}" for idx, line in enumerate(resnet_text.splitlines()[:20]))
+            )
+        resnet_text = (
+            resnet_text[: all_match.end()]
+            + "\n"
+            + new_model_urls
+            + resnet_text[all_match.end():]
+        )
 if old_pretrained in resnet_text:
     resnet_text = resnet_text.replace(old_pretrained, new_pretrained)
 
@@ -120,6 +130,45 @@ deeplab_text = deeplab_text.replace(
     "from torch.hub import load_state_dict_from_url\n",
 )
 deeplab_path.write_text(deeplab_text)
+
+backbone_init_path = repo_dir / "tllib" / "vision" / "models" / "object_detection" / "backbone" / "__init__.py"
+backbone_init_text = backbone_init_path.read_text()
+old_backbone_import = "from .vgg import VGG, build_vgg_fpn_backbone\n"
+new_backbone_import = """try:\n    from .vgg import VGG, build_vgg_fpn_backbone\nexcept ModuleNotFoundError as exc:\n    if exc.name != \"mmcv\":\n        raise\n\n    VGG = None\n    build_vgg_fpn_backbone = None\n"""
+if old_backbone_import in backbone_init_text and "ModuleNotFoundError" not in backbone_init_text:
+    backbone_init_text = new_backbone_import
+backbone_init_path.write_text(backbone_init_text)
+
+imagelist_path = repo_dir / "tllib" / "vision" / "datasets" / "imagelist.py"
+imagelist_text = imagelist_path.read_text()
+imagelist_text = imagelist_text.replace(
+    "from torch.utils.data.dataset import Dataset, T_co, IterableDataset\n",
+    "from torch.utils.data.dataset import Dataset, IterableDataset\n",
+)
+if "Dataset[T_co]" in imagelist_text and "TypeVar" not in imagelist_text:
+    imagelist_text = imagelist_text.replace(
+        "from typing import Optional, Callable, Tuple, Any, List, Iterable\n",
+        "from typing import Optional, Callable, Tuple, Any, List, Iterable, TypeVar\n",
+    )
+if "Dataset[T_co]" in imagelist_text and "T_co = TypeVar('T_co', covariant=True)" not in imagelist_text:
+    imagelist_text = imagelist_text.replace(
+        "from torchvision.datasets.folder import default_loader\n",
+        "from torchvision.datasets.folder import default_loader\n\nT_co = TypeVar('T_co', covariant=True)\n",
+    )
+imagelist_path.write_text(imagelist_text)
+
+object_detection_dataset_path = repo_dir / "tllib" / "vision" / "datasets" / "object_detection" / "__init__.py"
+object_detection_dataset_text = object_detection_dataset_path.read_text()
+object_detection_dataset_text = object_detection_dataset_text.replace(
+    "fileids = np.loadtxt(f, dtype=np.str)\n",
+    "fileids = np.loadtxt(f, dtype=str)\n",
+)
+object_detection_dataset_path.write_text(object_detection_dataset_text)
+
+dadapt_proposal_path = repo_dir / "tllib" / "alignment" / "d_adapt" / "proposal.py"
+dadapt_proposal_text = dadapt_proposal_path.read_text()
+dadapt_proposal_text = dadapt_proposal_text.replace(".astype(np.float)", ".astype(float)")
+dadapt_proposal_path.write_text(dadapt_proposal_text)
 
 print(f"Applied TLlib torchvision compatibility patches and verified {resnet_path}.")
 PY

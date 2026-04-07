@@ -16,7 +16,7 @@ if [[ ! -x "${PYTHON_BIN}" ]]; then
   env INSTALL_TORCH=1 INSTALL_DETECTRON2=1 \
     bash "${SETUP_SCRIPT}" "${TLIB_REPO_DIR}"
 else
-  echo "TLlib repair-only preflight:"
+  echo "TLlib repair-only preflight (verification failure stops the run):"
   env REPAIR_ONLY=1 \
     bash "${SETUP_SCRIPT}" "${TLIB_REPO_DIR}"
 fi

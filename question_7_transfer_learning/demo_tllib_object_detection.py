@@ -308,6 +308,58 @@ def validate_python_environment(python_bin) -> None:
     )
 
 
+def probe_tllib_object_detection_import(python_bin, repo_dir) -> dict[str, str]:
+    """Probe whether the TLlib object-detection module imports cleanly."""
+    probe = subprocess.run(
+        [
+            python_bin,
+            "-c",
+            (
+                "import sys\n"
+                "from pathlib import Path\n"
+                "repo_dir = Path(sys.argv[1]).resolve()\n"
+                "repo_dir_str = str(repo_dir)\n"
+                "if repo_dir_str not in sys.path:\n"
+                "    sys.path.insert(0, repo_dir_str)\n"
+                "import tllib.vision.models.object_detection.meta_arch as module\n"
+                "print(getattr(module, '__file__', '<unknown>'))\n"
+            ),
+            str(repo_dir),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=repo_dir,
+    )
+    details = "\n".join(
+        part.strip() for part in (probe.stdout, probe.stderr) if part and part.strip()
+    ).strip()
+    return {
+        "status": "ok" if probe.returncode == 0 else "failed",
+        "details": details,
+    }
+
+
+def ensure_tllib_object_detection_importable(import_probe) -> None:
+    """Fail early when TLlib's object-detection stack is still broken."""
+    if import_probe["status"] == "ok":
+        return
+
+    probe_details = import_probe.get("details") or "<no probe output captured>"
+    raise RuntimeError(
+        "The TLlib object-detection import probe failed before training started.\n\n"
+        "The target interpreter could not import "
+        "`tllib.vision.models.object_detection.meta_arch`.\n"
+        "This usually means the TLlib clone still needs the torchvision compatibility "
+        "repair or the environment is stale.\n\n"
+        "Suggested next steps:\n"
+        "  1) on OSC, run `git pull` if this checkout may be older than your local repo\n"
+        "  2) rerun `bash question_7_transfer_learning/setup_tllib_osc.sh`\n"
+        "  3) rerun this script with --mode doctor or the shell wrapper\n\n"
+        f"Probe error:\n{probe_details}"
+    )
+
+
 def dataset_layout_ok(path) -> bool:
     """Return True when the dataset layout looks complete."""
     # All required VOC-style subpaths must exist together.
@@ -1190,6 +1242,7 @@ def resolve_stage_weights(
 # while profile defaults fill in the rest.
 def print_doctor_summary(
     env_summary,
+    import_probe,
     full_dataset_paths,
     smoke_dataset_paths,
 ) -> None:
@@ -1201,6 +1254,18 @@ def print_doctor_summary(
         print(f"  {key}: {env_summary.get(key, 'unknown')}", flush=True)
     if "note" in env_summary:
         print(f"  note: {env_summary['note']}", flush=True)
+
+    print("TLlib import probe:", flush=True)
+    print(
+        f"  object_detection_meta_arch: {import_probe.get('status', 'unknown')}",
+        flush=True,
+    )
+    if import_probe.get("status") == "ok" and import_probe.get("details"):
+        print(f"  module_path: {import_probe['details']}", flush=True)
+    elif import_probe.get("details"):
+        print("  error:", flush=True)
+        for line in import_probe["details"].splitlines():
+            print(f"    {line}", flush=True)
 
     print("Dataset status:", flush=True)
     for label, path in full_dataset_paths.items():
@@ -1439,11 +1504,17 @@ def main() -> int:
         # Resolve full/smoke dataset roots and inspect the runtime environment.
         full_dataset_paths, smoke_dataset_paths, active_dataset_paths = resolve_dataset_paths(args)
         env_summary = collect_environment_summary(python_bin)
+        import_probe = probe_tllib_object_detection_import(python_bin, repo_dir)
         args.resolved_device = resolve_model_device(args.device, python_bin, env_summary)
 
         # doctor is the lightweight preflight: show environment status without mutating anything.
         if args.mode == "doctor":
-            print_doctor_summary(env_summary, full_dataset_paths, smoke_dataset_paths)
+            print_doctor_summary(
+                env_summary,
+                import_probe,
+                full_dataset_paths,
+                smoke_dataset_paths,
+            )
             print(f"  resolved_model_device: {args.resolved_device}", flush=True)
             return 0
 
@@ -1461,13 +1532,20 @@ def main() -> int:
                 )
 
         if args.mode == "prepare-datasets":
-            print_doctor_summary(env_summary, full_dataset_paths, smoke_dataset_paths)
+            print_doctor_summary(
+                env_summary,
+                import_probe,
+                full_dataset_paths,
+                smoke_dataset_paths,
+            )
             print("Active dataset root:", active_dataset_paths["VOC2007"].parent, flush=True)
             return 0
 
         if not args.dry_run:
             # Verify the Python environment only when a real run is about to happen.
             validate_python_environment(python_bin)
+            if args.mode in ("help", "source-only", "d-adapt", "visualize", "full-pipeline"):
+                ensure_tllib_object_detection_importable(import_probe)
 
         # help delegates straight to TLlib so its native CLI stays visible.
         if args.mode == "help":

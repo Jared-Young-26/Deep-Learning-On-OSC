@@ -43,24 +43,74 @@ compiler_looks_nvhpc() {
 apply_tllib_torchvision_compat() {
   "${PYTHON_BIN}" - <<'PY'
 from pathlib import Path
+import re
 
 repo_dir = Path.cwd()
 
 resnet_path = repo_dir / "tllib" / "vision" / "models" / "resnet.py"
 resnet_text = resnet_path.read_text()
-old_import = """from torch.hub import load_state_dict_from_url\ntry:\n    from torchvision.models.resnet import BasicBlock, Bottleneck, model_urls\nexcept ImportError:\n    from torchvision.models.resnet import BasicBlock, Bottleneck\n    model_urls = None\n"""
-new_import = """from torch.hub import load_state_dict_from_url\nfrom torchvision.models.resnet import BasicBlock, Bottleneck\n"""
+expected_import = "from torchvision.models.resnet import BasicBlock, Bottleneck"
+stale_import = "from torchvision.models.resnet import BasicBlock, Bottleneck, model_urls"
+new_import = expected_import + "\n"
 old_model_urls = """WEIGHTS_ENUMS = {\n    'resnet18': models.ResNet18_Weights.IMAGENET1K_V1,\n    'resnet34': models.ResNet34_Weights.IMAGENET1K_V1,\n    'resnet50': models.ResNet50_Weights.IMAGENET1K_V1,\n    'resnet101': models.ResNet101_Weights.IMAGENET1K_V1,\n    'resnet152': models.ResNet152_Weights.IMAGENET1K_V1,\n    'resnext50_32x4d': models.ResNeXt50_32X4D_Weights.IMAGENET1K_V1,\n    'resnext101_32x8d': models.ResNeXt101_32X8D_Weights.IMAGENET1K_V1,\n    'wide_resnet50_2': models.Wide_ResNet50_2_Weights.IMAGENET1K_V1,\n    'wide_resnet101_2': models.Wide_ResNet101_2_Weights.IMAGENET1K_V1,\n}\n"""
 new_model_urls = """WEIGHTS_ENUMS = {\n    'resnet18': models.ResNet18_Weights.IMAGENET1K_V1,\n    'resnet34': models.ResNet34_Weights.IMAGENET1K_V1,\n    'resnet50': models.ResNet50_Weights.IMAGENET1K_V1,\n    'resnet101': models.ResNet101_Weights.IMAGENET1K_V1,\n    'resnet152': models.ResNet152_Weights.IMAGENET1K_V1,\n    'resnext50_32x4d': models.ResNeXt50_32X4D_Weights.IMAGENET1K_V1,\n    'resnext101_32x8d': models.ResNeXt101_32X8D_Weights.IMAGENET1K_V1,\n    'wide_resnet50_2': models.Wide_ResNet50_2_Weights.IMAGENET1K_V1,\n    'wide_resnet101_2': models.Wide_ResNet101_2_Weights.IMAGENET1K_V1,\n}\n\n# torchvision removed `model_urls`, but several TLlib modules still import it.\n# Recreate the same mapping from the modern weights enums so older TLlib code\n# can keep calling `load_state_dict_from_url(model_urls[arch])`.\nmodel_urls = {arch: weights.url for arch, weights in WEIGHTS_ENUMS.items()}\n"""
 old_pretrained = """        if model_urls is not None:\n            pretrained_dict = load_state_dict_from_url(model_urls[arch], progress=progress)\n        else:\n            pretrained_dict = WEIGHTS_ENUMS[arch].get_state_dict(progress=progress)\n"""
 new_pretrained = """        pretrained_dict = load_state_dict_from_url(model_urls[arch], progress=progress)\n"""
+model_urls_line = "model_urls = {arch: weights.url for arch, weights in WEIGHTS_ENUMS.items()}"
 
-if old_import in resnet_text:
-    resnet_text = resnet_text.replace(old_import, new_import)
-if old_model_urls in resnet_text and "model_urls = {arch: weights.url for arch, weights in WEIGHTS_ENUMS.items()}" not in resnet_text:
+resnet_text = re.sub(
+    r"try:\n\s+from torchvision\.models\.resnet import .*model_urls.*\nexcept ImportError:\n\s+from torchvision\.models\.resnet import .*BasicBlock.*Bottleneck.*\n\s+model_urls = None\n",
+    new_import,
+    resnet_text,
+)
+resnet_text = re.sub(
+    r"^from torchvision\.models\.resnet import .*model_urls.*$",
+    expected_import,
+    resnet_text,
+    flags=re.MULTILINE,
+)
+
+if old_model_urls in resnet_text and model_urls_line not in resnet_text:
     resnet_text = resnet_text.replace(old_model_urls, new_model_urls)
+elif model_urls_line not in resnet_text:
+    weights_match = re.search(r"WEIGHTS_ENUMS = \{\n(?:    .+\n)+\}\n", resnet_text)
+    if weights_match is None:
+        raise SystemExit(
+            "Error: TLlib torchvision compatibility verification failed.\n"
+            f"File: {resnet_path}\n"
+            "  - could not locate the WEIGHTS_ENUMS block needed to restore model_urls\n"
+            "First 20 lines:\n"
+            + "\n".join(f"{idx + 1:>4}: {line}" for idx, line in enumerate(resnet_text.splitlines()[:20]))
+        )
+    resnet_text = (
+        resnet_text[: weights_match.end()]
+        + "\n"
+        + "# torchvision removed `model_urls`, but several TLlib modules still import it.\n"
+        + "# Recreate the same mapping from the modern weights enums so older TLlib code\n"
+        + "# can keep calling `load_state_dict_from_url(model_urls[arch])`.\n"
+        + model_urls_line
+        + "\n"
+        + resnet_text[weights_match.end():]
+    )
 if old_pretrained in resnet_text:
     resnet_text = resnet_text.replace(old_pretrained, new_pretrained)
+
+verification_errors = []
+if expected_import not in resnet_text:
+    verification_errors.append(f"missing expected import: {expected_import}")
+if stale_import in resnet_text:
+    verification_errors.append(f"stale import still present: {stale_import}")
+if model_urls_line not in resnet_text:
+    verification_errors.append(f"missing local model_urls mapping: {model_urls_line}")
+if verification_errors:
+    raise SystemExit(
+        "Error: TLlib torchvision compatibility verification failed.\n"
+        f"File: {resnet_path}\n"
+        + "\n".join(f"  - {error}" for error in verification_errors)
+        + "\nFirst 20 lines:\n"
+        + "\n".join(f"{idx + 1:>4}: {line}" for idx, line in enumerate(resnet_text.splitlines()[:20]))
+    )
+
 resnet_path.write_text(resnet_text)
 
 deeplab_path = repo_dir / "tllib" / "vision" / "models" / "segmentation" / "deeplabv2.py"
@@ -71,7 +121,7 @@ deeplab_text = deeplab_text.replace(
 )
 deeplab_path.write_text(deeplab_text)
 
-print("Applied TLlib torchvision compatibility patches.")
+print(f"Applied TLlib torchvision compatibility patches and verified {resnet_path}.")
 PY
 }
 

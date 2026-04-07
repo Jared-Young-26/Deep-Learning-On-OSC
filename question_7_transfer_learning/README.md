@@ -90,6 +90,21 @@ env REPAIR_ONLY=1 \
 The doctor mode checks the Python environment, required modules, dataset
 locations, and resolved device selection.
 
+If you still see `ImportError: cannot import name 'model_urls'` on OSC, update
+the OSC checkout itself before rerunning Q7:
+
+```bash
+git pull
+env REPAIR_ONLY=1 bash question_7_transfer_learning/setup_tllib_osc.sh
+sed -n '1,20p' external/Transfer-Learning-Library/tllib/vision/models/resnet.py
+```
+
+The import near the top of `resnet.py` should be:
+
+```python
+from torchvision.models.resnet import BasicBlock, Bottleneck
+```
+
 ## Profiles
 
 - `smoke` uses small local subsets and shortened schedules for quick

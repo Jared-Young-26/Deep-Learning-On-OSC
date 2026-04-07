@@ -73,8 +73,9 @@ Useful flags:
 The script uses `--inside-allocation` internally after self-submit. You
 normally do not need to pass that flag yourself.
 
-For the Q5 training stage, the OSC-safe defaults are `imgsz=1024`, `batch=1`,
-and `workers=0`. This repository keeps the fix in the training wrapper and
+For the Q5 training stage, the OSC-safe defaults are `imgsz=768`, `batch=1`,
+`workers=0`, and `close_mosaic=20` so the first epoch avoids the highest-memory
+augmentation path. This repository keeps the fix in the training wrapper and
 orchestrator behavior rather than adding Slurm `--mem` flags to the launchers.
 
 ## Modules
@@ -107,7 +108,7 @@ Bootstraps iSAID data, fine-tunes YOLO11 segmentation, and exports semantic
 masks for aerial imagery.
 
 - Setup: `bash question_5_semantic_segmentation/setup_yolo11_osc.sh`
-- OSC GPU train: `bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- external/ultralytics/.venv/bin/python question_5_semantic_segmentation/train_isaid_seg.py --repo-dir external/ultralytics --device 0 --epochs 20 --imgsz 1024 --batch 1 --workers 0 --exist-ok`
+- OSC GPU train: `bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- external/ultralytics/.venv/bin/python question_5_semantic_segmentation/train_isaid_seg.py --repo-dir external/ultralytics --device 0 --epochs 20 --imgsz 768 --batch 1 --workers 0 --close-mosaic 20 --exist-ok`
 - Manual resume: `external/ultralytics/.venv/bin/python question_5_semantic_segmentation/train_isaid_seg.py --repo-dir external/ultralytics --device 0 --resume`
 - Demo: `external/ultralytics/.venv/bin/python question_5_semantic_segmentation/demo_yolo_segmentation.py --repo-dir external/ultralytics --device cpu`
 

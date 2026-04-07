@@ -304,9 +304,10 @@ stage_q5_training() {
     --repo-dir external/ultralytics
     --device 0
     --epochs 20
-    --imgsz 1024
+    --imgsz 768
     --batch 1
     --workers 0
+    --close-mosaic 20
     --exist-ok
   )
 

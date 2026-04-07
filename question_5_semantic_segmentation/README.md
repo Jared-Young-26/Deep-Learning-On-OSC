@@ -91,9 +91,10 @@ bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
   --repo-dir external/ultralytics \
   --device 0 \
   --epochs 20 \
-  --imgsz 1024 \
+  --imgsz 768 \
   --batch 1 \
   --workers 0 \
+  --close-mosaic 20 \
   --exist-ok
 ```
 
@@ -101,9 +102,10 @@ Default training settings are:
 
 - model: `yolo11s-seg.pt`
 - epochs: `20`
-- imgsz: `1024`
+- imgsz: `768`
 - batch: `1`
 - workers: `0`
+- close_mosaic: `20`
 
 The reusable checkpoint alias is written to:
 
@@ -220,8 +222,9 @@ image.
 - Python 3.9.18 is the supported OSC baseline for this workflow.
 - On OSC, launch GPU training through `bash osc_gpu_batch.sh` or from a shell
   opened by `bash osc_gpu_interactive.sh`.
-- The OSC stability fix is in the Q5 training defaults (`batch=1`, `workers=0`)
-  and resume behavior, not in extra Slurm `--mem` flags.
+- The OSC stability fix is in the Q5 training defaults (`imgsz=768`, `batch=1`,
+  `workers=0`, `close_mosaic=20`) and resume behavior, not in extra Slurm
+  `--mem` flags.
 - The first bootstrap run downloads several gigabytes of dataset assets and can
   take time to extract and convert.
 - Setup and inference work on CPU. Full training is best on a CUDA-capable

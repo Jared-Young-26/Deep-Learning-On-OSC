@@ -57,9 +57,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Dataset YAML. Defaults to the repo-local iSAID segmentation YAML.",
     )
     parser.add_argument("--epochs", type=int, default=20, help="Number of training epochs.")
-    parser.add_argument("--imgsz", type=int, default=1024, help="Training image size.")
+    parser.add_argument("--imgsz", type=int, default=768, help="Training image size.")
     parser.add_argument("--batch", type=int, default=1, help="Batch size.")
     parser.add_argument("--workers", type=int, default=0, help="Data loader workers.")
+    parser.add_argument(
+        "--close-mosaic",
+        type=int,
+        default=None,
+        help="Disable mosaic for the final N epochs. Defaults to all epochs on OSC.",
+    )
     parser.add_argument(
         "--plots",
         action="store_true",
@@ -126,6 +132,7 @@ def main() -> int:
     output_model = resolve_question_path(args.output_model)
     run_dir = project_dir / args.name
     resume_checkpoint = run_dir / "weights" / "last.pt"
+    close_mosaic = args.close_mosaic if args.close_mosaic is not None else args.epochs
 
     # Dry-run mode stops after printing the resolved paths.
     if args.dry_run:
@@ -141,6 +148,7 @@ def main() -> int:
         print(f"Image size:    {args.imgsz}")
         print(f"Batch:         {args.batch}")
         print(f"Workers:       {args.workers}")
+        print(f"Close mosaic:  {close_mosaic}")
         print(f"Plots:         {'yes' if args.plots else 'no'}")
         print(f"Output alias:  {output_model}")
         return 0
@@ -207,6 +215,7 @@ def main() -> int:
     print(f"Runs root:    {project_dir}")
     print(f"Run dir:      {run_dir}")
     print(f"Resume mode:  {'enabled' if args.resume else 'disabled'}")
+    print(f"Close mosaic: {close_mosaic}")
 
     # Load the starting checkpoint into a YOLO model object.
     model = YOLO(model_source)
@@ -218,6 +227,7 @@ def main() -> int:
         "imgsz": args.imgsz,
         "batch": args.batch,
         "workers": args.workers,
+        "close_mosaic": close_mosaic,
         "project": str(project_dir),
         "name": args.name,
         "exist_ok": args.exist_ok,

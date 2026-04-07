@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import shlex
-import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -45,14 +45,22 @@ TF2_ENV_OVERRIDES = {
     "TF_CPP_MIN_LOG_LEVEL": "2",
 }
 
-# The PyTorch upstream entrypoint still calls Pillow's removed FreeTypeFont.getsize()
-# helper on some OSC builds. Run the module through a tiny shim that restores a
-# compatible getsize() implementation before the upstream code imports it.
+# The PyTorch batch shim loads the model only once, then walks the entire input
+# selection. It also restores a compatible getsize() helper for newer Pillow
+# builds before the upstream visualizer imports it.
 INLINE_PYTORCH_SCRIPT = r"""
-import runpy
-import sys
+import argparse
+import json
+from pathlib import Path
 
+import torch as t
 from PIL import ImageFont
+
+from pytorch.FasterRCNN import state, visualize
+from pytorch.FasterRCNN.datasets import voc
+from pytorch.FasterRCNN.datasets import image as image_utils
+from pytorch.FasterRCNN.models import resnet, vgg16, vgg16_torch
+from pytorch.FasterRCNN.models.faster_rcnn import FasterRCNNModel
 
 
 def compat_getsize(self, text, *args, **kwargs):
@@ -69,8 +77,83 @@ for class_name in ("FreeTypeFont", "ImageFont"):
         font_class.getsize = compat_getsize
 
 
-sys.argv = ["pytorch.FasterRCNN", *sys.argv[1:]]
-runpy.run_module("pytorch.FasterRCNN", run_name="__main__")
+def build_backbone(name):
+    valid_backbones = {"vgg16", "vgg16-torch", "resnet50", "resnet101", "resnet152"}
+    if name not in valid_backbones:
+        raise ValueError("--backbone must be one of: " + ", ".join(sorted(valid_backbones)))
+
+    if name == "vgg16":
+        return vgg16.VGG16Backbone(dropout_probability=0.0)
+    if name == "vgg16-torch":
+        return vgg16_torch.VGG16Backbone(dropout_probability=0.0)
+    if name == "resnet50":
+        return resnet.ResNetBackbone(architecture=resnet.Architecture.ResNet50)
+    if name == "resnet101":
+        return resnet.ResNetBackbone(architecture=resnet.Architecture.ResNet101)
+    return resnet.ResNetBackbone(architecture=resnet.Architecture.ResNet152)
+
+
+def predict_job(model, input_path, output_path, show_image):
+    image_data, image_obj, _, _ = image_utils.load_image(
+        url=input_path,
+        preprocessing=model.backbone.image_preprocessing_params,
+        min_dimension_pixels=600,
+    )
+    with t.no_grad():
+        image_tensor = t.from_numpy(image_data).unsqueeze(dim=0).cuda()
+        scored_boxes_by_class_index = model.predict(image_data=image_tensor, score_threshold=0.7)
+    visualize.show_detections(
+        output_path=output_path,
+        show_image=show_image,
+        image=image_obj,
+        scored_boxes_by_class_index=scored_boxes_by_class_index,
+        class_index_to_name=voc.Dataset.class_index_to_name,
+    )
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--weights", required=True)
+parser.add_argument("--backbone", required=True)
+parser.add_argument("--mode", choices=("to-file", "viewer"), default="to-file")
+parser.add_argument("--jobs-json", required=True)
+args = parser.parse_args()
+
+jobs = json.loads(args.jobs_json)
+backbone = build_backbone(args.backbone)
+model = FasterRCNNModel(
+    num_classes=voc.Dataset.num_classes,
+    backbone=backbone,
+    allow_edge_proposals=True,
+).cuda()
+state.load(model=model, filepath=args.weights)
+model.eval()
+
+show_image = args.mode == "viewer"
+total = len(jobs)
+
+for index, job in enumerate(jobs, start=1):
+    input_path = job["input"]
+    output_path = job["output"]
+    if total > 1:
+        print(f"[{index}/{total}] {input_path}", flush=True)
+        if output_path is not None:
+            print(f"      -> {output_path}", flush=True)
+
+    if output_path is not None:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+
+    predict_job(
+        model=model,
+        input_path=input_path,
+        output_path=output_path,
+        show_image=show_image,
+    )
+
+    if output_path is not None:
+        if total == 1:
+            print(f"Saved demo output to: {output_path}", flush=True)
+        else:
+            print(f"[{index}/{total}] Saved demo output to: {output_path}", flush=True)
 """
 
 # The upstream TF2 path expects a different entrypoint shape than this file uses.
@@ -821,25 +904,6 @@ def build_command(
     output_path,
 ) -> list[str]:
     """Build the upstream inference command."""
-    if framework == "pytorch":
-        # Run the upstream PyTorch module through a Pillow compatibility shim so
-        # newer FreeTypeFont builds on OSC still support the text renderer.
-        command = [
-            python_bin,
-            "-c",
-            INLINE_PYTORCH_SCRIPT,
-            f"--load-from={weights}",
-        ]
-        # Pass the backbone only when one was resolved.
-        if backbone:
-            command.append(f"--backbone={backbone}")
-        # Choose the upstream prediction flag that matches the requested mode.
-        if mode == "to-file":
-            command.append(f"--predict-to-file={job.local_image}")
-        else:
-            command.append(f"--predict={job.local_image}")
-        return command
-
     # The TF2 path executes the compatibility shim above because it handles model
     # warm-up, H5 loading, and drawing in a way that works reliably on this setup.
     tf2_output = str(output_path) if mode == "to-file" and output_path is not None else ""
@@ -858,6 +922,45 @@ def build_command(
     if mode == "viewer":
         command.append("--show-image")
     return command
+
+
+def build_pytorch_jobs_payload(
+    selection,
+    output_paths,
+) -> list[dict[str, str | None]]:
+    """Build the job list consumed by the inline PyTorch batch runner."""
+    return [
+        {
+            "input": str(job.local_image),
+            "output": str(output_path) if output_path is not None else None,
+        }
+        for job, output_path in zip(selection.jobs, output_paths)
+    ]
+
+
+def build_pytorch_batch_command(
+    python_bin,
+    weights,
+    backbone,
+    mode,
+    jobs_payload,
+) -> list[str]:
+    """Build the single PyTorch batch command that handles every image."""
+    if not backbone:
+        raise ValueError("A PyTorch backbone must be resolved before batch inference.")
+    return [
+        python_bin,
+        "-c",
+        INLINE_PYTORCH_SCRIPT,
+        "--weights",
+        weights,
+        "--backbone",
+        backbone,
+        "--mode",
+        mode,
+        "--jobs-json",
+        json.dumps(jobs_payload),
+    ]
 
 
 def build_subprocess_env(framework, python_bin) -> dict[str, str] | None:
@@ -944,6 +1047,29 @@ def main() -> int:
         )
 
     total_jobs = len(selection.jobs)
+    if framework == "pytorch":
+        jobs_payload = build_pytorch_jobs_payload(selection, output_paths)
+        command = build_pytorch_batch_command(
+            python_bin=python_bin,
+            weights=resolved_weights,
+            backbone=backbone,
+            mode=args.mode,
+            jobs_payload=jobs_payload,
+        )
+
+        if args.verbose_command or args.dry_run:
+            print_command(command, index=1, total=1)
+
+        if args.dry_run:
+            return 0
+
+        for output_path in output_paths:
+            if output_path is not None:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        subprocess.run(command, cwd=repo_dir, check=True)
+        return 0
+
     # Each job becomes one upstream subprocess call so single-image and batch modes
     # both reuse the same execution path.
     for index, (job, output_path) in enumerate(zip(selection.jobs, output_paths), start=1):
@@ -978,24 +1104,8 @@ def main() -> int:
         # every run enters with consistent paths, weights, and save behavior.
         subprocess.run(command, cwd=repo_dir, check=True, env=command_env)
 
-        # The PyTorch implementation always writes predictions.png in the repo,
-        # so this file copies that canonical artifact into the local output path.
         if output_path is None:
             continue
-
-        if framework == "pytorch":
-            generated = repo_dir / "predictions.png"
-            if generated.exists():
-                # Copy the canonical upstream saved image to the resolved destination.
-                shutil.copy2(generated, output_path)
-            else:
-                # If the canonical artifact is missing, the subprocess likely ran
-                # but the upstream tool did not produce the expected saved image.
-                print(
-                    "Inference finished, but predictions.png was not found. "
-                    "Check command output for errors."
-                )
-                return 0
 
         # Print per-image destinations so the saved artifacts are easy to find later.
         if total_jobs == 1:

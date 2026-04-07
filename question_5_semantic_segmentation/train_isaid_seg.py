@@ -58,8 +58,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--epochs", type=int, default=50, help="Number of training epochs.")
     parser.add_argument("--imgsz", type=int, default=1024, help="Training image size.")
-    parser.add_argument("--batch", type=int, default=4, help="Batch size.")
-    parser.add_argument("--workers", type=int, default=4, help="Data loader workers.")
+    parser.add_argument("--batch", type=int, default=1, help="Batch size.")
+    parser.add_argument("--workers", type=int, default=0, help="Data loader workers.")
     parser.add_argument("--device", default="", help="Device string such as 0, 0,1, or cpu.")
     parser.add_argument(
         "--project",
@@ -80,6 +80,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--exist-ok",
         action="store_true",
         help="Allow Ultralytics to reuse an existing run directory with the same name.",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from <project>/<name>/weights/last.pt if that checkpoint exists.",
     )
     parser.add_argument("--dry-run", action="store_true", help="Print resolved paths and exit.")
     return parser
@@ -114,6 +119,8 @@ def main() -> int:
     data_yaml = resolve_question_path(args.data)
     project_dir = resolve_question_path(args.project)
     output_model = resolve_question_path(args.output_model)
+    run_dir = project_dir / args.name
+    resume_checkpoint = run_dir / "weights" / "last.pt"
 
     # Dry-run mode stops after printing the resolved paths.
     if args.dry_run:
@@ -122,6 +129,13 @@ def main() -> int:
         print(f"Data YAML:     {data_yaml}")
         print(f"Project dir:   {project_dir}")
         print(f"Run name:      {args.name}")
+        print(f"Run dir:       {run_dir}")
+        print(f"Resume:        {'yes' if args.resume else 'no'}")
+        print(f"Resume ckpt:   {resume_checkpoint}")
+        print(f"Epochs:        {args.epochs}")
+        print(f"Image size:    {args.imgsz}")
+        print(f"Batch:         {args.batch}")
+        print(f"Workers:       {args.workers}")
         print(f"Output alias:  {output_model}")
         return 0
 
@@ -149,12 +163,22 @@ def main() -> int:
 
     from ultralytics import YOLO
 
-    print(f"Starting segmentation training from {resolved_model}")
+    if args.resume and not resume_checkpoint.exists():
+        raise FileNotFoundError(
+            f"Resume checkpoint does not exist: {resume_checkpoint}. "
+            "Start a fresh run first or omit --resume."
+        )
+
+    model_source = str(resume_checkpoint) if args.resume else resolved_model
+
+    print(f"Starting segmentation training from {model_source}")
     print(f"Dataset YAML: {data_yaml}")
     print(f"Runs root:    {project_dir}")
+    print(f"Run dir:      {run_dir}")
+    print(f"Resume mode:  {'enabled' if args.resume else 'disabled'}")
 
     # Load the starting checkpoint into a YOLO model object.
-    model = YOLO(resolved_model)
+    model = YOLO(model_source)
 
     # Build the keyword arguments passed into the Ultralytics trainer.
     train_kwargs = {
@@ -166,11 +190,14 @@ def main() -> int:
         "project": str(project_dir),
         "name": args.name,
         "exist_ok": args.exist_ok,
+        "plots": True,
         "task": "segment",
     }
     # Pass the device only when the caller explicitly set one.
     if args.device:
         train_kwargs["device"] = args.device
+    if args.resume:
+        train_kwargs["resume"] = str(resume_checkpoint)
 
     # Launch training with the resolved configuration.
     model.train(**train_kwargs)

@@ -60,6 +60,7 @@ By default, this script:
 - self-submits one GPU batch job through `osc_gpu_batch.sh` when you launch it from an OSC login node
 - runs the staged pipeline directly when you are already inside a Slurm allocation
 - reuses existing environments, model downloads, datasets, and heavy output sentinels when they already exist
+- resumes question 5 training from `question_5_semantic_segmentation/runs/segment/train/isaid_yolo11s_seg/weights/last.pt` when `best.pt` is missing but `last.pt` exists
 - defaults question 7 to the `benchmark` profile
 
 Useful flags:
@@ -71,6 +72,10 @@ Useful flags:
 
 The script uses `--inside-allocation` internally after self-submit. You
 normally do not need to pass that flag yourself.
+
+For the Q5 training stage, the OSC-safe defaults are `imgsz=1024`, `batch=1`,
+and `workers=0`. This repository keeps the fix in the training wrapper and
+orchestrator behavior rather than adding Slurm `--mem` flags to the launchers.
 
 ## Modules
 
@@ -102,7 +107,8 @@ Bootstraps iSAID data, fine-tunes YOLO11 segmentation, and exports semantic
 masks for aerial imagery.
 
 - Setup: `bash question_5_semantic_segmentation/setup_yolo11_osc.sh`
-- OSC GPU train: `bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- external/ultralytics/.venv/bin/python question_5_semantic_segmentation/train_isaid_seg.py --repo-dir external/ultralytics --device 0`
+- OSC GPU train: `bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- external/ultralytics/.venv/bin/python question_5_semantic_segmentation/train_isaid_seg.py --repo-dir external/ultralytics --device 0 --imgsz 1024 --batch 1 --workers 0 --exist-ok`
+- Manual resume: `external/ultralytics/.venv/bin/python question_5_semantic_segmentation/train_isaid_seg.py --repo-dir external/ultralytics --device 0 --resume`
 - Demo: `external/ultralytics/.venv/bin/python question_5_semantic_segmentation/demo_yolo_segmentation.py --repo-dir external/ultralytics --device cpu`
 
 ### [Directional Convolution Filters](question_6_convolution_filters/README.md)

@@ -14,6 +14,9 @@ Q4_YOLOV12_PYTHON="${REPO_ROOT}/external/yolov12/.venv/bin/python"
 Q5_MODEL_ALIAS="${REPO_ROOT}/question_5_semantic_segmentation/models/isaid_seg/best.pt"
 Q5_PRETRAINED_MODEL="${REPO_ROOT}/question_5_semantic_segmentation/models/pretrained/yolo11s-seg.pt"
 Q5_DATASET_YAML="${REPO_ROOT}/question_5_semantic_segmentation/datasets/isaid_seg.yaml"
+Q5_TRAIN_PROJECT_DIR="${REPO_ROOT}/question_5_semantic_segmentation/runs/segment/train"
+Q5_TRAIN_RUN_NAME="isaid_yolo11s_seg"
+Q5_LAST_CHECKPOINT="${Q5_TRAIN_PROJECT_DIR}/${Q5_TRAIN_RUN_NAME}/weights/last.pt"
 Q7_REPO_PYTHON="${REPO_ROOT}/external/Transfer-Learning-Library/.venv/bin/python"
 
 ACCOUNT=""
@@ -296,20 +299,36 @@ stage_q5_readiness() {
 
 stage_q5_training() {
   start_stage "Q5 training"
-  if [[ "${FORCE}" == "1" || ! -f "${Q5_MODEL_ALIAS}" ]]; then
-    if [[ "${FORCE}" == "1" && -f "${Q5_MODEL_ALIAS}" ]]; then
-      log "INFO" "Force enabled; rerunning Q5 training despite existing best.pt."
-    else
-      log "INFO" "Missing Q5 trained checkpoint; running training."
+  local q5_train_cmd=(
+    "${Q4_ULTRALYTICS_PYTHON}" question_5_semantic_segmentation/train_isaid_seg.py
+    --repo-dir external/ultralytics
+    --device 0
+    --imgsz 1024
+    --batch 1
+    --workers 0
+    --exist-ok
+  )
+
+  if [[ -f "${Q5_MODEL_ALIAS}" && "${FORCE}" != "1" ]]; then
+    log "SKIP" "Q5 training skipped because best.pt exists at ${Q5_MODEL_ALIAS}."
+  elif [[ "${FORCE}" == "1" ]]; then
+    log "INFO" "Q5 training starting fresh because --force was set."
+    run_cmd "${q5_train_cmd[@]}"
+    if [[ "${DRY_RUN}" != "1" ]]; then
+      require_file "${Q5_MODEL_ALIAS}"
     fi
-    run_cmd "${Q4_ULTRALYTICS_PYTHON}" question_5_semantic_segmentation/train_isaid_seg.py \
-      --repo-dir external/ultralytics \
-      --device 0
+  elif [[ -f "${Q5_LAST_CHECKPOINT}" ]]; then
+    log "INFO" "Q5 training resuming from last.pt at ${Q5_LAST_CHECKPOINT}."
+    run_cmd "${q5_train_cmd[@]}" --resume
     if [[ "${DRY_RUN}" != "1" ]]; then
       require_file "${Q5_MODEL_ALIAS}"
     fi
   else
-    log "SKIP" "Q5 trained checkpoint already present at ${Q5_MODEL_ALIAS}."
+    log "INFO" "Q5 training starting fresh because no reusable checkpoint exists yet."
+    run_cmd "${q5_train_cmd[@]}"
+    if [[ "${DRY_RUN}" != "1" ]]; then
+      require_file "${Q5_MODEL_ALIAS}"
+    fi
   fi
   finish_stage
 }

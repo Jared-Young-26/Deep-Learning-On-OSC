@@ -89,7 +89,11 @@ bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
   external/ultralytics/.venv/bin/python \
   question_5_semantic_segmentation/train_isaid_seg.py \
   --repo-dir external/ultralytics \
-  --device 0
+  --device 0 \
+  --imgsz 1024 \
+  --batch 1 \
+  --workers 0 \
+  --exist-ok
 ```
 
 Default training settings are:
@@ -97,12 +101,32 @@ Default training settings are:
 - model: `yolo11s-seg.pt`
 - epochs: `50`
 - imgsz: `1024`
-- batch: `4`
-- workers: `4`
+- batch: `1`
+- workers: `0`
 
 The reusable checkpoint alias is written to:
 
 - `question_5_semantic_segmentation/models/isaid_seg/best.pt`
+
+The canonical resumable checkpoint is:
+
+- `question_5_semantic_segmentation/runs/segment/train/isaid_yolo11s_seg/weights/last.pt`
+
+If a run is interrupted after it has started writing checkpoints, rerun the
+wrapper with `--resume` and it will continue from that `last.pt` while keeping
+the safer OSC defaults:
+
+```bash
+external/ultralytics/.venv/bin/python \
+  question_5_semantic_segmentation/train_isaid_seg.py \
+  --repo-dir external/ultralytics \
+  --device 0 \
+  --resume
+```
+
+The repo-root orchestrator follows the same rule automatically: it skips Q5 if
+`models/isaid_seg/best.pt` already exists, resumes from `last.pt` when that
+alias is missing, and otherwise starts a fresh run.
 
 For a short functional CPU check, reduce the workload explicitly:
 
@@ -195,6 +219,8 @@ image.
 - Python 3.9.18 is the supported OSC baseline for this workflow.
 - On OSC, launch GPU training through `bash osc_gpu_batch.sh` or from a shell
   opened by `bash osc_gpu_interactive.sh`.
+- The OSC stability fix is in the Q5 training defaults (`batch=1`, `workers=0`)
+  and resume behavior, not in extra Slurm `--mem` flags.
 - The first bootstrap run downloads several gigabytes of dataset assets and can
   take time to extract and convert.
 - Setup and inference work on CPU. Full training is best on a CUDA-capable

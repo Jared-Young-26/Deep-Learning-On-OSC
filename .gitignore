@@ -1,10 +1,11 @@
+# Repository-local noise that should never be committed.
 .DS_Store
 **/__pycache__/
 *.pyc
 *.pyo
 **/.venv/
 
-# Never publish upstream clones or their local environments.
+# Vendored upstream clones and their local environments stay untracked.
 external/
 
 # Q3 keeps the handpicked sample inputs/outputs, but not cached URL downloads.
@@ -19,7 +20,6 @@ question_5_semantic_segmentation/datasets/
 question_5_semantic_segmentation/models/
 question_5_semantic_segmentation/runs/
 question_5_semantic_segmentation/outputs/
-
 
 # Q7 training assets stay local, but the written summaries can be tracked.
 question_7_transfer_learning/datasets/

@@ -25,6 +25,8 @@ from q5_seg_common import (
     resolve_repo_dir,
 )
 
+# Re-exec marker used when the wrapper hops into the repo-local Ultralytics
+# environment before importing YOLO.
 REEXEC_MARKER = "Q5_SEG_TRAIN_INNER"
 
 
@@ -225,11 +227,13 @@ def main() -> int:
         """Cap validation batch size on OSC to reduce host-memory pressure."""
 
         def check_resume(self, overrides):
+            """Keep the caller-requested epoch count when resuming training."""
             super().check_resume(overrides)
             if self.resume and "epochs" in overrides:
                 self.args.epochs = overrides["epochs"]
 
         def _build_train_pipeline(self):
+            """Rebuild the validation loader with a smaller OSC-safe batch size."""
             super()._build_train_pipeline()
             batch_size = self.batch_size // max(self.world_size, 1)
             self.test_loader = self.get_dataloader(

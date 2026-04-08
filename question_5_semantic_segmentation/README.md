@@ -5,6 +5,11 @@ YOLO11 segmentation and the iSAID dataset. The workflow prepares a repo-local
 Ultralytics environment, bootstraps the dataset into YOLO segmentation format,
 fine-tunes the model, and exports per-pixel semantic outputs for input images.
 
+The repo-owned scripts here intentionally separate three concerns: environment
+setup, dataset normalization, and model execution. That keeps the OSC workflow
+reusable even though the upstream Ultralytics project expects a different
+project layout than this assignment repository.
+
 ## Overview
 
 - `question_5_semantic_segmentation/setup_yolo11_osc.sh` prepares the

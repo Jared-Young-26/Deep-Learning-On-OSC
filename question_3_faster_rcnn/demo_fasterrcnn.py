@@ -15,6 +15,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 
+# Repository-local paths and runtime defaults used by the wrapper.
 QUESTION_DIR = Path(__file__).resolve().parent
 REPO_ROOT = QUESTION_DIR.parent
 DEFAULT_REPO_DIR = REPO_ROOT / "external" / "FasterRCNN"
@@ -44,6 +45,9 @@ TF2_ENV_OVERRIDES = {
     "CUDA_VISIBLE_DEVICES": "-1",
     "TF_CPP_MIN_LOG_LEVEL": "2",
 }
+
+# Embedded compatibility shims that execute inside the target FasterRCNN
+# environment. Keeping them inline avoids patching the vendored upstream code.
 
 # The PyTorch batch shim loads the model only once, then walks the entire input
 # selection. It also restores a compatible getsize() helper for newer Pillow
@@ -312,8 +316,11 @@ visualize.show_detections(
 """
 
 
+# Repo-owned input selection types used by the outer CLI wrapper.
 @dataclass(frozen=True)
 class ImageJob:
+    """One resolved inference job for a local image path."""
+
     display_input: str
     local_image: Path
     output_relative: Path
@@ -323,10 +330,14 @@ class ImageJob:
 # directory of images through the same execution loop.
 @dataclass(frozen=True)
 class InputSelection:
+    """A normalized file-or-directory selection resolved from `--image`."""
+
     jobs: list[ImageJob]
     source_label: str
     is_directory: bool
 
+
+# Runtime and environment helper functions.
 
 # These helpers choose the safest runtime path from the machine and weight names.
 def is_url(value) -> bool:
@@ -371,11 +382,7 @@ def resolve_python(repo_dir, requested) -> str:
     return sys.executable
 
 
-def run_python_probe(
-    python_bin,
-    probe,
-    env_overrides=None,
-) -> subprocess.CompletedProcess[str]:
+def run_python_probe(python_bin, probe, env_overrides=None) -> subprocess.CompletedProcess[str]:
     """Run a short Python probe in the target interpreter."""
     env = os.environ.copy()
     if env_overrides:
@@ -650,11 +657,7 @@ def discover_directory_images(input_root) -> list[Path]:
     return images
 
 
-def resolve_input_selection(
-    repo_dir,
-    image,
-    dry_run=False,
-) -> InputSelection:
+def resolve_input_selection(repo_dir, image, dry_run=False) -> InputSelection:
     # Convert the user-facing --image argument into one normalized list of jobs.
     # Everything downstream can then treat single-image and batch mode uniformly.
     """Turn the user input into one normalized job selection."""
@@ -752,11 +755,7 @@ def resolve_directory_output_root(raw_output) -> Path:
     return candidate.resolve()
 
 
-def resolve_output_paths(
-    selection,
-    raw_output,
-    mode,
-) -> tuple[list[Path | None], str | None]:
+def resolve_output_paths(selection, raw_output, mode) -> tuple[list[Path | None], str | None]:
     """Resolve the output path for each job."""
     # Viewer mode leaves output handling to the upstream GUI/image viewer path.
     # Viewer mode does not write file outputs managed by this script.
@@ -850,14 +849,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def format_run_summary(
-    requested_framework,
-    framework,
-    weights,
-    mode,
-    selection,
-    output_label,
-) -> str:
+def format_run_summary(requested_framework, framework, weights, mode, selection, output_label) -> str:
     # Print a compact summary before execution so the high-level plan is visible
     # without reading the full subprocess command.
     """Build the short run summary text."""
@@ -894,15 +886,7 @@ def format_run_summary(
 
 # Command construction translates one stable local interface into the selected
 # upstream Faster R-CNN implementation.
-def build_command(
-    framework,
-    python_bin,
-    weights,
-    backbone,
-    job,
-    mode,
-    output_path,
-) -> list[str]:
+def build_command(framework, python_bin, weights, backbone, job, mode, output_path) -> list[str]:
     """Build the upstream inference command."""
     # The TF2 path executes the compatibility shim above because it handles model
     # warm-up, H5 loading, and drawing in a way that works reliably on this setup.
@@ -924,10 +908,7 @@ def build_command(
     return command
 
 
-def build_pytorch_jobs_payload(
-    selection,
-    output_paths,
-) -> list[dict[str, str | None]]:
+def build_pytorch_jobs_payload(selection, output_paths) -> list[dict[str, str | None]]:
     """Build the job list consumed by the inline PyTorch batch runner."""
     return [
         {
@@ -938,13 +919,7 @@ def build_pytorch_jobs_payload(
     ]
 
 
-def build_pytorch_batch_command(
-    python_bin,
-    weights,
-    backbone,
-    mode,
-    jobs_payload,
-) -> list[str]:
+def build_pytorch_batch_command(python_bin, weights, backbone, mode, jobs_payload) -> list[str]:
     """Build the single PyTorch batch command that handles every image."""
     if not backbone:
         raise ValueError("A PyTorch backbone must be resolved before batch inference.")

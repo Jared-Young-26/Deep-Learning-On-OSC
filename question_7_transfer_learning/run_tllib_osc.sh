@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Run the repo-owned Q7 helper flow on OSC. The wrapper first repairs or
+# bootstraps the TLlib clone, then runs `doctor`, then launches the selected
+# full pipeline profile with the resolved device configuration.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TLIB_REPO_DIR="${TLIB_REPO_DIR:-${REPO_ROOT}/external/Transfer-Learning-Library}"
@@ -12,10 +16,13 @@ FORCE="${FORCE:-0}"
 PROFILE="${PROFILE:-smoke}"
 
 if [[ ! -x "${PYTHON_BIN}" ]]; then
+  # A missing runtime means setup must build the environment from scratch.
   echo "TLlib runtime missing at ${PYTHON_BIN}; running full setup."
   env INSTALL_TORCH=1 INSTALL_DETECTRON2=1 \
     bash "${SETUP_SCRIPT}" "${TLIB_REPO_DIR}"
 else
+  # When the environment already exists, prefer the cheaper repair-only path so
+  # compatibility fixes are refreshed before doctor or training starts.
   echo "TLlib repair-only preflight (verification failure stops the run):"
   env REPAIR_ONLY=1 \
     bash "${SETUP_SCRIPT}" "${TLIB_REPO_DIR}"
@@ -60,6 +67,8 @@ if [[ "${FORCE}" == "1" ]]; then
   EXTRA_ARGS=(--force "${EXTRA_ARGS[@]}")
 fi
 
+# Keep the explicit environment check in the shell transcript before the
+# longer-running training stages begin.
 # Run the environment check before starting the full pipeline.
 echo "TLlib doctor check:"
 "${PYTHON_BIN}" "${SCRIPT_DIR}/demo_tllib_object_detection.py" \

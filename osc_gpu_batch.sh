@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Thin Slurm batch wrapper shared by the repo-owned OSC workflows. The script
+# keeps GPU request syntax, CUDA module loading, and preflight validation in one
+# place so the per-question wrappers do not each rebuild the same logic.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFLIGHT_SCRIPT="${SCRIPT_DIR}/osc_gpu_preflight.sh"
 
@@ -31,6 +35,7 @@ EOF
 }
 
 quote_command() {
+  # Render commands exactly as they will be executed so dry runs remain copyable.
   local quoted=()
   local part
   for part in "$@"; do
@@ -39,6 +44,7 @@ quote_command() {
   printf '%s' "${quoted[*]}"
 }
 
+# Parse launcher options until the user-provided command begins.
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --account)
@@ -102,11 +108,15 @@ if [[ $# -eq 0 ]]; then
 fi
 
 COMMAND=("$@")
+# Resolve the working directory once so the generated batch script does not
+# depend on where `sbatch` itself expands relative paths.
 WORKDIR="$(cd "${WORKDIR}" && pwd)"
 COMMAND_STRING="$(quote_command "${COMMAND[@]}")"
 TMP_SCRIPT="$(mktemp "/tmp/osc-gpu-batch.XXXXXX")"
 trap 'rm -f "${TMP_SCRIPT}"' EXIT
 
+# Materialize a short batch script instead of shell-escaping the entire command
+# through `sbatch --wrap`, which keeps the preflight flow easier to inspect.
 cat >"${TMP_SCRIPT}" <<EOF
 #!/usr/bin/env bash
 #SBATCH --account=${ACCOUNT}
@@ -117,6 +127,7 @@ cat >"${TMP_SCRIPT}" <<EOF
 EOF
 
 if [[ -n "${CLUSTER}" ]]; then
+  # Forward the optional cluster selection only when the caller set it.
   printf '#SBATCH --cluster=%s\n' "${CLUSTER}" >>"${TMP_SCRIPT}"
 fi
 
@@ -137,8 +148,11 @@ exec ${COMMAND_STRING}
 EOF
 
 if [[ "${DRY_RUN}" == "1" ]]; then
+  # Print the generated submission script so the caller can audit it before
+  # running on OSC.
   cat "${TMP_SCRIPT}"
   exit 0
 fi
 
+# Submit the prepared batch script exactly once after validation passes.
 sbatch "${TMP_SCRIPT}"

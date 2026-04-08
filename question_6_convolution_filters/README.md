@@ -4,6 +4,10 @@ This module derives six 3x3 directional convolution kernels and applies them to
 synthetic patterns or real images. The demos produce JSON summaries and viewable
 feature maps that highlight horizontal, vertical, and diagonal responses.
 
+Unlike the OSC-heavy model wrappers elsewhere in the repo, this directory is a
+pure repo-owned implementation. The code is intentionally small and explicit so
+the kernel derivation, preprocessing, and reporting steps remain easy to audit.
+
 ## Overview
 
 - `question_6_convolution_filters/convolution_filter_library.py` derives the

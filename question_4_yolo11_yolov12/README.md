@@ -5,6 +5,10 @@ This module provides two object detection workflows built around local clones of
 [sunsmarterjie/yolov12](https://github.com/sunsmarterjie/yolov12). Each model
 has its own setup script, wrapper, input folder, and output folder.
 
+The tracked wrappers keep both model families aligned with the same OSC-facing
+runtime conventions: repo-local virtual environments, explicit Python 3.9.18
+checks, predictable output folders, and the same GPU-vs-CPU guardrails.
+
 ## Overview
 
 - `question_4_yolo11_yolov12/setup_yolo11_osc.sh` clones the Ultralytics

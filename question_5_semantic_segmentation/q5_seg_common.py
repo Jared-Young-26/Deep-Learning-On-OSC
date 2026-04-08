@@ -16,6 +16,7 @@ from typing import Iterable
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+# Repository-local paths shared by the Q5 bootstrap, train, and demo wrappers.
 QUESTION_DIR = Path(__file__).resolve().parent
 REPO_ROOT = QUESTION_DIR.parent
 
@@ -41,6 +42,7 @@ DEFAULT_DOTA_ZIP = DOWNLOADS_DIR / "DOTAv1.zip"
 DEFAULT_DOTA_EXTRACT_DIR = DOWNLOADS_DIR / "DOTAv1"
 DEFAULT_ISAID_GDRIVE_DIR = DOWNLOADS_DIR / "isaid_gdrive"
 
+# Repository-local model and checkpoint locations reused across Q5 entrypoints.
 MODELS_DIR = QUESTION_DIR / "models"
 PRETRAINED_MODELS_DIR = MODELS_DIR / "pretrained"
 DEFAULT_PRETRAINED_MODEL = PRETRAINED_MODELS_DIR / "yolo11s-seg.pt"
@@ -55,6 +57,7 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
 OSC_GPU_BATCH_LAUNCHER_NAME = "osc_gpu_batch.sh"
 
+# iSAID class metadata and palette helpers used by the conversion and demo code.
 ISAID_CLASS_NAMES = {
     0: "plane",
     1: "ship",
@@ -96,6 +99,7 @@ _PALETTE = [
     (82, 235, 52),
 ]
 
+# Lightweight metadata and path helper functions.
 
 def class_color(class_id) -> tuple[int, int, int]:
     # Cycle through one fixed palette so class colors stay stable across runs.
@@ -266,12 +270,7 @@ def ensure_supported_repo_python_version(python_executable) -> str:
     return version
 
 
-def maybe_reexec_with_repo_python(
-    repo_dir,
-    requested_python,
-    marker,
-    argv=None,
-) -> None:
+def maybe_reexec_with_repo_python(repo_dir, requested_python, marker, argv=None) -> None:
     """Re-run under the repository interpreter when needed."""
     target_python = Path(resolve_python(repo_dir, requested_python)).expanduser().resolve()
     ensure_supported_repo_python_version(target_python)
@@ -584,13 +583,7 @@ def parse_isaid_google_drive_links(dataset_page_url) -> dict[str, str]:
     return {"train": match.group(1), "val": match.group(2)}
 
 
-def gdown_download_folder(
-    url,
-    output_dir,
-    *,
-    force=False,
-    python_executable=None,
-) -> Path:
+def gdown_download_folder(url, output_dir, *, force=False, python_executable=None) -> Path:
     # Reuse an existing folder download unless the caller forces a refresh.
     """Download one Google Drive folder when needed."""
     output_dir = output_dir.resolve()
@@ -801,13 +794,7 @@ def normalize_isaid_annotation_json(source, destination, image_dir=None) -> Path
     return destination
 
 
-def prepare_isaid_raw_layout(
-    *,
-    raw_root,
-    dota_root,
-    train_json_source,
-    val_json_source,
-) -> Path:
+def prepare_isaid_raw_layout(*, raw_root, dota_root, train_json_source, val_json_source) -> Path:
     # Link or copy the RGB image folders into the normalized raw layout.
     """Build the normalized raw iSAID layout."""
     raw_root = raw_root.resolve()

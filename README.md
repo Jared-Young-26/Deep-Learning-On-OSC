@@ -6,6 +6,12 @@ module includes its own README, runnable scripts, sample inputs, and output
 folders. Third-party source dependencies are cloned under `external/` so the
 modules can share repo-local environments.
 
+The repo-owned code in this project focuses on OSC-safe wrappers, setup
+scripts, orchestration, and reporting. Upstream model implementations stay in
+`external/`, while the tracked Python and shell entrypoints in this repository
+normalize path handling, environment setup, GPU checks, resumability, and
+artifact layout.
+
 Commands below assume you are running from the repository root with Python 3.9.18
 loaded on OSC.
 
@@ -26,7 +32,9 @@ notes behind this baseline.
 
 GPU resources on OSC come from Slurm allocations, not from the Python scripts
 themselves. Request the GPU node first, then run the repo command inside that
-allocation.
+allocation. The repo-root launchers are intentionally thin wrappers around
+`sbatch` and `salloc` so every question directory can reuse the same allocation
+rules and GPU preflight checks.
 
 Batch example:
 
@@ -81,6 +89,15 @@ fix in the training wrapper and orchestrator behavior rather than adding Slurm
 `--mem` flags to the launchers.
 
 ## Modules
+
+Each question directory follows the same general structure:
+
+- a module README that documents the workflow and OSC-specific caveats
+- one or more setup or orchestration scripts that prepare repo-local runtimes
+- one or more Python wrappers that keep the public CLI stable even when the
+  upstream project expects a different entrypoint shape
+- tracked sample inputs and curated outputs where that makes the assignment
+  easier to review
 
 ### [Faster R-CNN Object Detection](question_3_faster_rcnn/README.md)
 

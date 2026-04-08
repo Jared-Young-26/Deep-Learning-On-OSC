@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Prepare the repo-local Ultralytics clone used by the tracked YOLO11 wrapper.
+# The script keeps the OSC interpreter baseline explicit so later wrapper
+# diagnostics can assume one known runtime shape.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEFAULT_REPO_DIR="${REPO_ROOT}/external/ultralytics"
@@ -23,6 +27,7 @@ if [[ "${REPO_DIR}" != /* ]]; then
   REPO_DIR="${PWD}/${REPO_DIR}"
 fi
 
+# Clone or reuse the upstream repository before rebuilding the environment.
 # Create the parent directory before cloning into it.
 mkdir -p "$(dirname "${REPO_DIR}")"
 
@@ -75,6 +80,7 @@ python -m pip install --upgrade pip setuptools wheel
 # Install the clone in editable mode so imports resolve to this checkout.
 pip install -e .
 
+# Finish by printing the recommended OSC batch command for the prepared runtime.
 # Print the next commands for the prepared environment.
 cat <<EOF2
 YOLO11 setup complete.

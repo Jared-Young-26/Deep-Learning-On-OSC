@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Prepare the repo-local Ultralytics environment used by the Q5 segmentation
+# wrappers. Unlike Q4, this setup may also bootstrap the dataset and pretrained
+# checkpoint because the tracked Q5 CLI expects those artifacts to exist.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEFAULT_REPO_DIR="${REPO_ROOT}/external/ultralytics"
@@ -23,6 +27,7 @@ if [[ "${REPO_DIR}" != /* ]]; then
   REPO_DIR="${PWD}/${REPO_DIR}"
 fi
 
+# Clone or reuse the upstream repository before rebuilding the environment.
 # Create the parent directory before cloning into it.
 mkdir -p "$(dirname "${REPO_DIR}")"
 
@@ -72,6 +77,8 @@ fi
 # Activate the environment before installing or checking packages.
 source .venv/bin/activate
 
+# Keep the packaging bootstrap tools below versions known to work with this
+# OSC-ready Ultralytics segmentation path.
 # Verify the packaging tool versions before reinstalling them.
 if python - <<'PY'
 from importlib.metadata import PackageNotFoundError, version
@@ -102,6 +109,8 @@ else
   python -m pip install --disable-pip-version-check --upgrade "pip<27" "setuptools<82" wheel
 fi
 
+# Remove stale site-packages copies so imports resolve to this checkout rather
+# than to any previously installed Ultralytics wheel.
 # Remove stale Ultralytics package metadata before reinstalling the local clone.
 python - <<'PY'
 import shutil
@@ -146,6 +155,8 @@ else
   pip install --disable-pip-version-check --upgrade "shapely>=2.0.0"
 fi
 
+# Keep the Q5 setup self-contained by ensuring the dataset downloader is present
+# before the optional auto-bootstrap step runs.
 # Check that gdown is available before running the dataset bootstrap.
 if python - <<'PY'
 from importlib.metadata import PackageNotFoundError, version
@@ -183,6 +194,8 @@ else
   echo "Skipping automatic Q5 dataset bootstrap because AUTO_BOOTSTRAP_DATASET=${AUTO_BOOTSTRAP_DATASET}."
 fi
 
+# Finish by printing the shortest follow-up commands for manual bootstrap,
+# training, and inference.
 # Print the next commands for the prepared environment.
 cat <<EOF2
 YOLO11 segmentation setup complete.

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Download the tracked FasterRCNN checkpoints into the local upstream clone.
+# This script intentionally stays small because the repo-root wrappers already
+# handle environment selection and only need the weight files to exist.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_DIR="${1:-${REPO_ROOT}/external/FasterRCNN}"
@@ -19,6 +23,7 @@ fi
 
 # Try the available download tools in order.
 download_file() {
+  # Prefer wget when present, but keep curl as a compatible fallback.
   local url="$1"
   local output_path="$2"
 
@@ -40,6 +45,7 @@ download_file() {
 cd "${REPO_DIR}"
 
 # Download the supported base and detector weights into the repository root.
+# The wrappers infer the correct backend from these filenames later.
 download_file "http://trzy.org/files/fasterrcnn/vgg16_caffe.pth" "vgg16_caffe.pth"
 download_file "http://trzy.org/files/fasterrcnn/fasterrcnn_pytorch_vgg16.pth" "fasterrcnn_pytorch_vgg16.pth"
 download_file "http://trzy.org/files/fasterrcnn/fasterrcnn_tf2.h5" "fasterrcnn_tf2.h5"

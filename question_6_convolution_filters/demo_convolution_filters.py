@@ -13,6 +13,7 @@ from convolution_filter_library import (
     matrix_stats,
 )
 
+# Repository-local output defaults used by the synthetic demo.
 QUESTION_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_PATH = QUESTION_DIR / "outputs" / "convolution_filter_demo.json"
 
@@ -58,7 +59,6 @@ def format_matrix(matrix, width=6) -> str:
 
 def summarize_responses(responses) -> dict[str, dict[str, float]]:
     """Reduce each full response map to summary metrics."""
-    # Reuse the shared summary helper for each named response matrix.
     # Run the shared stats helper on each named response matrix.
     return {name: matrix_stats(matrix) for name, matrix in responses.items()}
 

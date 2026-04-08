@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Repo-root OSC orchestrator for questions 3 through 7. The script can
+# self-submit from a login node, or it can execute directly inside an existing
+# GPU allocation after the shared preflight confirms CUDA visibility.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SCRIPT_DIR}"
 OSC_GPU_BATCH_LAUNCHER="${REPO_ROOT}/osc_gpu_batch.sh"
 OSC_GPU_PREFLIGHT="${REPO_ROOT}/osc_gpu_preflight.sh"
 
+# Shared interpreter baseline enforced by the repo-owned setup scripts.
 SUPPORTED_PYTHON_VERSION="3.9.18"
 
+# Common runtime and artifact locations reused across readiness checks.
 Q3_REPO_PYTHON="${REPO_ROOT}/external/FasterRCNN/.venv/bin/python"
 Q4_ULTRALYTICS_PYTHON="${REPO_ROOT}/external/ultralytics/.venv/bin/python"
 Q4_YOLOV12_PYTHON="${REPO_ROOT}/external/yolov12/.venv/bin/python"
@@ -55,16 +61,19 @@ EOF
 }
 
 timestamp() {
+  # Keep log lines sortable across long OSC runs and resumptions.
   date '+%Y-%m-%d %H:%M:%S'
 }
 
 log() {
+  # Centralize stage and command logging so the batch transcript is readable.
   local level="$1"
   shift
   printf '[%s] [%s] %s\n' "$(timestamp)" "${level}" "$*"
 }
 
 quote_command() {
+  # Render commands exactly as they will be executed in dry-run output.
   local quoted=()
   local part
   for part in "$@"; do
@@ -74,11 +83,13 @@ quote_command() {
 }
 
 fail() {
+  # Prefer one consistent fatal-error path so callers always get a shell error.
   echo "Error: $*" >&2
   exit 1
 }
 
 on_error() {
+  # Name the failing stage in the shell transcript when a subcommand aborts.
   local exit_code=$?
   if [[ -n "${CURRENT_STAGE}" ]]; then
     echo "Error: stage failed: ${CURRENT_STAGE}" >&2
@@ -88,6 +99,7 @@ on_error() {
 trap on_error ERR
 
 start_stage() {
+  # Track one current stage name for logging and error-reporting purposes.
   CURRENT_STAGE="$1"
   STAGE_COUNT=$((STAGE_COUNT + 1))
   printf '\n'
@@ -99,6 +111,7 @@ finish_stage() {
 }
 
 run_cmd() {
+  # Route every external command through one logging and dry-run gate.
   log "RUN" "$(quote_command "$@")"
   if [[ "${DRY_RUN}" == "1" ]]; then
     return 0
@@ -107,6 +120,7 @@ run_cmd() {
 }
 
 require_file() {
+  # Treat missing downstream artifacts as a hard readiness or execution failure.
   local path="$1"
   if [[ ! -e "${path}" ]]; then
     fail "required file is missing after ${CURRENT_STAGE}: ${path}"
@@ -114,12 +128,14 @@ require_file() {
 }
 
 python_version_matches() {
+  # Verify the runtime baseline without printing probe noise into stage logs.
   local python_bin="$1"
   [[ -x "${python_bin}" ]] || return 1
   [[ "$("${python_bin}" -c 'import sys; print(sys.version.split()[0])' 2>/dev/null || true)" == "${SUPPORTED_PYTHON_VERSION}" ]]
 }
 
 python_imports_available() {
+  # Probe multiple imports in one interpreter launch so readiness checks stay cheap.
   local python_bin="$1"
   shift
   [[ -x "${python_bin}" ]] || return 1
@@ -132,14 +148,18 @@ python_imports_available() {
 }
 
 in_slurm_allocation() {
+  # Support both batch and interactive Slurm session shapes.
   [[ -n "${SLURM_JOB_ID:-}" || -n "${SLURM_STEP_ID:-}" ]]
 }
 
 q7_summary_path() {
+  # Q7 uses profile-specific output folders, so compute the tracked summary path lazily.
   printf '%s/question_7_transfer_learning/outputs/voc2clipart_%s/summary.json' "${REPO_ROOT}" "${Q7_PROFILE}"
 }
 
 resolve_q6_python() {
+  # Reuse the Ultralytics environment for Q6 when it already exists; otherwise
+  # fall back to the shared OSC interpreter name used elsewhere in the repo.
   if [[ -x "${Q4_ULTRALYTICS_PYTHON}" ]]; then
     printf '%s\n' "${Q4_ULTRALYTICS_PYTHON}"
   else
@@ -148,6 +168,8 @@ resolve_q6_python() {
 }
 
 submit_self() {
+  # Build the self-submit command explicitly so `--dry-run` can show the exact
+  # job that would be launched from a login node.
   local submit_cmd=(
     bash "${OSC_GPU_BATCH_LAUNCHER}"
     --account "${ACCOUNT}"
@@ -398,6 +420,7 @@ stage_q7_execution() {
 }
 
 run_pipeline() {
+  # Keep the assignment order explicit so stage logs mirror the intended rubric order.
   stage_q3_readiness
   stage_q3_execution
   stage_q4_yolo11_readiness
@@ -413,6 +436,8 @@ run_pipeline() {
 }
 
 parse_args() {
+  # Parse only the orchestrator's own flags. Question-specific settings stay in
+  # the per-question wrappers.
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --account)
@@ -474,10 +499,14 @@ main() {
   parse_args "$@"
   cd "${REPO_ROOT}"
 
+  # Load the shared OSC GPU helpers before deciding whether to self-submit or
+  # execute directly in the current shell.
   # shellcheck disable=SC1090
   source "${OSC_GPU_PREFLIGHT}"
 
   if [[ "${INSIDE_ALLOCATION}" != "1" ]]; then
+    # Reuse a valid GPU allocation when possible. Otherwise, self-submit a
+    # fresh batch job from the login node or from a CPU-only Slurm session.
     if in_slurm_allocation && osc_slurm_gpu_signals_present && osc_visible_gpu_present; then
       :
     else
@@ -493,6 +522,7 @@ main() {
   if [[ "${DRY_RUN}" == "1" ]]; then
     log "INFO" "Dry run inside allocation mode; skipping GPU preflight."
   else
+    # Validate the active allocation again before launching any model code.
     osc_prepare_gpu_environment
     osc_require_gpu_allocation "run_assignment_osc.sh"
   fi

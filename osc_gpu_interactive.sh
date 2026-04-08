@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Thin Slurm interactive wrapper shared by the repo-owned OSC workflows. It
+# requests a GPU allocation, then opens a login shell that already passed the
+# same preflight checks used by the batch launcher.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFLIGHT_SCRIPT="${SCRIPT_DIR}/osc_gpu_preflight.sh"
 
@@ -27,6 +31,7 @@ EOF
 }
 
 quote_command() {
+  # Render commands exactly as they will be executed so dry runs stay copyable.
   local quoted=()
   local part
   for part in "$@"; do
@@ -35,6 +40,7 @@ quote_command() {
   printf '%s' "${quoted[*]}"
 }
 
+# Parse launcher options before constructing the `salloc ... srun` command.
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --account)
@@ -79,6 +85,8 @@ if [[ -z "${ACCOUNT}" || -z "${TIME_LIMIT}" ]]; then
   exit 1
 fi
 
+# Source the shared preflight helpers inside the allocated shell, then refuse to
+# continue if Slurm did not expose a real GPU.
 SHELL_SNIPPET="source $(printf '%q' "${PREFLIGHT_SCRIPT}"); osc_prepare_gpu_environment; osc_require_gpu_allocation interactive-shell; exec /bin/bash -l"
 
 ALLOC_COMMAND=(
@@ -90,6 +98,7 @@ ALLOC_COMMAND=(
 )
 
 if [[ -n "${CLUSTER}" ]]; then
+  # Forward the optional cluster selection only when the caller set it.
   ALLOC_COMMAND+=("--cluster=${CLUSTER}")
 fi
 
@@ -101,4 +110,5 @@ if [[ "${DRY_RUN}" == "1" ]]; then
   exit 0
 fi
 
+# Replace the current shell with the interactive allocation request.
 exec "${ALLOC_COMMAND[@]}"

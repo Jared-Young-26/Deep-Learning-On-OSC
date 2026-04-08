@@ -4,6 +4,11 @@ This module wraps TLlib's VOC-to-Clipart domain adaptation example into a
 repeatable workflow with environment checks, dataset preparation, source-only
 training, D-adapt phases, visualization, and summary generation.
 
+The tracked shell and Python entrypoints are responsible for the OSC-specific
+stability work in this directory: clone repair, dependency checks, compatibility
+patches, profile defaults, and portable summary outputs. The upstream training
+logic itself remains in the local TLlib checkout under `external/`.
+
 Upstream references:
 
 - TLlib object detection example:

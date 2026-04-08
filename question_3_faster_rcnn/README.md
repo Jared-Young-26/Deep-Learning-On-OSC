@@ -5,6 +5,10 @@ This module runs image object detection with a local clone of
 local file, an image URL, or a directory of images and saves annotated outputs
 under this module.
 
+The repo-owned scripts in this directory do not modify the upstream detector.
+They standardize OSC setup, choose between the supported PyTorch and TF2 paths,
+and keep the public CLI and output layout consistent for local review.
+
 ## Overview
 
 - `question_3_faster_rcnn/setup_fasterrcnn_osc.sh` clones the upstream project

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Prepare the repo-local YOLOv12 clone used by the tracked wrapper. This setup
+# intentionally pins a narrower dependency set than the upstream project so the
+# OSC path stays reproducible on the shared Python 3.9.18 baseline.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEFAULT_REPO_DIR="${REPO_ROOT}/external/yolov12"
@@ -46,6 +50,7 @@ if [[ -z "${PYTHON_BIN}" ]]; then
   fi
 fi
 
+# Clone or reuse the upstream repository before rebuilding the environment.
 # Create the parent directory before cloning into it.
 mkdir -p "$(dirname "${REPO_DIR}")"
 
@@ -110,6 +115,7 @@ else
   echo "Skipping flash-attn install under the supported Python ${SUPPORTED_PYTHON_VERSION} OSC baseline."
 fi
 
+# Finish by printing the recommended OSC batch command for the prepared runtime.
 # Print the next commands for the prepared environment.
 cat <<EOF2
 YOLOv12 setup complete.

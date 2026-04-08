@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 
+# Shared OSC GPU checks used by both the batch and interactive launchers. The
+# helper functions are written so repo-owned wrappers can source this file and
+# reuse the same allocation validation rules before they touch CUDA code.
+
 OSC_GPU_HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OSC_GPU_BATCH_LAUNCHER="${OSC_GPU_HELPER_DIR}/osc_gpu_batch.sh"
 OSC_GPU_INTERACTIVE_LAUNCHER="${OSC_GPU_HELPER_DIR}/osc_gpu_interactive.sh"
 
 osc_prepare_gpu_environment() {
+  # Some OSC shells expose `module`, while others may not. Treat CUDA module
+  # loading as a best-effort preparation step instead of a hard requirement.
   if ! command -v module >/dev/null 2>&1; then
     return 0
   fi
@@ -12,6 +18,8 @@ osc_prepare_gpu_environment() {
 }
 
 osc_gpu_allocation_hint() {
+  # Centralize the user-facing recovery hint so every wrapper prints the same
+  # next step when CUDA was requested from a login node or CPU-only job.
   local target="${1:-the requested command}"
   cat >&2 <<EOF
 Request an OSC GPU allocation before running ${target}.
@@ -29,17 +37,23 @@ EOF
 }
 
 osc_slurm_gpu_signals_present() {
+  # Check the common Slurm and CUDA visibility variables without assuming one
+  # exact cluster-side convention.
   local signal="${SLURM_GPUS_ON_NODE:-${SLURM_JOB_GPUS:-${CUDA_VISIBLE_DEVICES:-}}}"
   [[ -n "${signal}" && "${signal}" != "NoDevFiles" ]]
 }
 
 osc_visible_gpu_present() {
+  # Require that `nvidia-smi` can see at least one device before a repo wrapper
+  # advertises the session as GPU-ready.
   command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1
 }
 
 osc_require_gpu_allocation() {
   local target="${1:-the requested command}"
 
+  # Load CUDA first so the later probes see the same environment the model
+  # entrypoints will inherit.
   osc_prepare_gpu_environment
 
   if [[ -z "${SLURM_JOB_ID:-}" && -z "${SLURM_STEP_ID:-}" ]]; then
@@ -64,5 +78,6 @@ osc_require_gpu_allocation() {
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  # Allow the file to act as both a sourced helper and a direct diagnostic.
   osc_require_gpu_allocation "${1:-the requested command}"
 fi

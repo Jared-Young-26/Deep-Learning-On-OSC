@@ -35,6 +35,8 @@ from q5_seg_common import (
     url_output_suffix,
 )
 
+# Re-exec marker used when the wrapper hops into the repo-local Ultralytics
+# environment before importing YOLO.
 REEXEC_MARKER = "Q5_SEG_DEMO_INNER"
 
 
@@ -148,8 +150,8 @@ def resolve_model_for_demo(raw_model) -> str:
 
 
 def default_single_outputs(source, source_path) -> tuple[Path, Path, Path, Path]:
-    # Derive one stable output stem from the local filename or URL.
     """Build the default output paths for one source."""
+    # Derive one stable output stem from the local filename or URL.
     if source_path is not None:
         # Reuse the local file stem and suffix for overlay naming.
         overlay_suffix = source_path.suffix.lower() or ".jpg"
@@ -168,8 +170,8 @@ def default_single_outputs(source, source_path) -> tuple[Path, Path, Path, Path]
 
 
 def write_json(path, data) -> Path:
-    # Create the parent directory and write one formatted JSON file.
     """Write one JSON file."""
+    # Create the parent directory and write one formatted JSON file.
     path = path.resolve()
     # Make sure the output folder exists before writing.
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -179,8 +181,8 @@ def write_json(path, data) -> Path:
 
 
 def write_csv(path, rows) -> Path:
-    # Flatten the per-image summaries into one batch index file.
     """Write one CSV file."""
+    # Flatten the per-image summaries into one batch index file.
     path = path.resolve()
     # Create the destination folder before opening the CSV file.
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -211,8 +213,8 @@ def write_csv(path, rows) -> Path:
 
 
 def row_from_summary(summary, summary_path) -> dict[str, object]:
-    # Pull the summary fields into the fixed CSV schema.
     """Convert one summary into a CSV row."""
+    # Pull the summary fields into the fixed CSV schema.
     # Read the optional image shape from the summary payload.
     image_shape = summary.get("image_shape") or []
     height = image_shape[0] if len(image_shape) == 2 else ""
@@ -334,16 +336,7 @@ def colorize_class_map(class_map, np_module):
     return mask
 
 
-def render_outputs(
-    image_bgr,
-    class_map,
-    detections,
-    overlay_path,
-    class_ids_path,
-    mask_path,
-    cv2_module,
-    np_module,
-) -> None:
+def render_outputs(image_bgr, class_map, detections, overlay_path, class_ids_path, mask_path, cv2_module, np_module) -> None:
     # Build the color mask first, then blend it with the original image.
     """Write the overlay, class-id map, and color mask."""
     color_mask = colorize_class_map(class_map, np_module)
@@ -442,21 +435,7 @@ def serializable_detections(detections) -> list[dict[str, object]]:
     ]
 
 
-def success_summary(
-    *,
-    model_label,
-    source_label,
-    image_shape,
-    requested_keep_classes,
-    keep_ids,
-    overlay_path,
-    class_ids_path,
-    mask_path,
-    name_map,
-    class_map,
-    detections,
-    np_module,
-) -> dict[str, object]:
+def success_summary(*, model_label, source_label, image_shape, requested_keep_classes, keep_ids, overlay_path, class_ids_path, mask_path, name_map, class_map, detections, np_module) -> dict[str, object]:
     # Build one success payload with counts, artifact paths, and per-instance details.
     """Build the success summary payload."""
     # Count how many detections survived for each class name.
@@ -484,14 +463,7 @@ def success_summary(
     }
 
 
-def error_summary(
-    *,
-    model_label,
-    source_label,
-    requested_keep_classes,
-    keep_ids,
-    error_message,
-) -> dict[str, object]:
+def error_summary(*, model_label, source_label, requested_keep_classes, keep_ids, error_message) -> dict[str, object]:
     # Keep the error payload in the same shape as the success payload.
     """Build the error summary payload."""
     # Return the same keys as the success payload with empty artifact fields.
@@ -527,20 +499,7 @@ def run_predict(model, source, predict_kwargs):
     return results[0]
 
 
-def process_one_source(
-    model,
-    source_label,
-    args,
-    keep_ids,
-    name_map,
-    predict_kwargs,
-    overlay_path,
-    class_ids_path,
-    mask_path,
-    *,
-    cv2_module,
-    np_module,
-) -> dict[str, object]:
+def process_one_source(model, source_label, args, keep_ids, name_map, predict_kwargs, overlay_path, class_ids_path, mask_path, *, cv2_module, np_module) -> dict[str, object]:
     # Run one prediction and pull the original image back out of the result object.
     """Process one source image from prediction to outputs."""
     result = run_predict(model, source_label, predict_kwargs)
@@ -580,17 +539,7 @@ def process_one_source(
     )
 
 
-def run_single_mode(
-    model,
-    source,
-    args,
-    keep_ids,
-    name_map,
-    predict_kwargs,
-    *,
-    cv2_module,
-    np_module,
-) -> int:
+def run_single_mode(model, source, args, keep_ids, name_map, predict_kwargs, *, cv2_module, np_module) -> int:
     # Start with the default output paths, then apply any explicit overrides.
     """Run the single-image flow."""
     source_path = None if is_url(source) else Path(source)
@@ -629,17 +578,7 @@ def run_single_mode(
     return 0
 
 
-def run_directory_mode(
-    model,
-    source_dir,
-    args,
-    keep_ids,
-    name_map,
-    predict_kwargs,
-    *,
-    cv2_module,
-    np_module,
-) -> int:
+def run_directory_mode(model, source_dir, args, keep_ids, name_map, predict_kwargs, *, cv2_module, np_module) -> int:
     # Collect every supported image under the source directory.
     """Run the directory batch flow."""
     images = list_supported_images(source_dir)

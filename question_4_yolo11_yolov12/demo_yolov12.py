@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
+# Repository-local paths and runtime defaults used by the wrapper.
 QUESTION_DIR = Path(__file__).resolve().parent
 REPO_ROOT = QUESTION_DIR.parent
 DEFAULT_REPO_DIR = REPO_ROOT / "external" / "yolov12"
@@ -22,6 +23,10 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
 OSC_GPU_BATCH_LAUNCHER_NAME = "osc_gpu_batch.sh"
+
+# Embedded runtime shim that executes inside the target YOLOv12 environment.
+# The outer wrapper keeps repo-local path resolution and curated artifact
+# copying separate from the actual model invocation.
 
 # The inline script keeps the actual model invocation inside the target
 # environment while the outer file handles path resolution and artifact copying.
@@ -61,6 +66,8 @@ if args.device:
 model.predict(**predict_kwargs)
 '''
 
+
+# Runtime and path-resolution helpers used by the outer CLI wrapper.
 
 # These helpers normalize local paths so the CLI behaves the same whether it is
 # launched from the repository root or from this directory.
@@ -219,6 +226,8 @@ def runtime_messages(stdout, stderr) -> list[str]:
     return deduped
 
 
+# Source resolution and output-path helpers.
+
 def is_url(source) -> bool:
     """Return True when the value looks like a URL."""
     parsed = urlparse(source)
@@ -291,9 +300,7 @@ def expected_output_names(source, source_path) -> list[str]:
     return [source_path.name]
 
 
-def copy_saved_images(
-    save_dir, names, output_dir, output_path
-) -> list[Path]:
+def copy_saved_images(save_dir, names, output_dir, output_path) -> list[Path]:
     """Copy saved images into the final output location."""
     # Ultralytics saves raw outputs into the run directory first, then this
     # helper copies the final annotated images into the local output location.

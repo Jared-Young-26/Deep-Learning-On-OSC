@@ -7,6 +7,7 @@ Matrix = list[list[float]]
 Direction = tuple[int, int]
 
 
+# Named direction metadata shared by both demos.
 # Map each filter label to the direction vector it measures.
 DIRECTION_VECTORS: dict[str, Direction] = {
     "horizontal": (1, 0),
@@ -18,6 +19,7 @@ DIRECTION_VECTORS: dict[str, Direction] = {
 }
 
 
+# Kernel construction helpers.
 def _sign(value) -> int:
     """Return the sign of one numeric value."""
     # Reduce every input to the {-1, 0, 1} range used by the kernels.
@@ -84,6 +86,7 @@ def get_directional_kernels(normalize=False) -> dict[str, Matrix]:
     }
 
 
+# Convolution and summary helpers reused by both demos.
 def convolve2d(image, kernel) -> Matrix:
     """Convolve an image with a kernel using zero-padding and same-size output."""
     # Reject empty inputs before any shape math runs.
@@ -138,9 +141,7 @@ def convolve2d(image, kernel) -> Matrix:
     return output
 
 
-def apply_all_directional_filters(
-    image, normalize_kernels=False
-) -> dict[str, Matrix]:
+def apply_all_directional_filters(image, normalize_kernels=False) -> dict[str, Matrix]:
     """Apply all 6 directional filters to an image."""
     # Build the kernel set once, then run one convolution per direction.
     kernels = get_directional_kernels(normalize=normalize_kernels)

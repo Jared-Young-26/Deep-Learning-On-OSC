@@ -41,6 +41,8 @@ from q5_seg_common import (
     write_dataset_yaml,
 )
 
+# Re-exec marker used when the wrapper hops into the repo-local Ultralytics
+# environment before importing conversion utilities.
 REEXEC_MARKER = "Q5_SEG_BOOTSTRAP_INNER"
 
 

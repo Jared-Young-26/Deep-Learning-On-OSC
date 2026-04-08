@@ -17,6 +17,7 @@ from convolution_filter_library import (
     normalize_matrix_abs_to_uint8,
 )
 
+# Repository-local path defaults and rendering order used by the image demo.
 QUESTION_DIR = Path(__file__).resolve().parent
 REPO_ROOT = QUESTION_DIR.parent
 DEFAULT_INPUT_DIR = QUESTION_DIR / "inputs"
@@ -48,6 +49,7 @@ Matrix = list[list[float]]
 UInt8Matrix = list[list[int]]
 
 
+# CLI and source-resolution helpers.
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser."""
     parser = argparse.ArgumentParser(
@@ -233,6 +235,7 @@ def portable_repo_path(path) -> str:
     return os.path.relpath(path.resolve(), start=REPO_ROOT)
 
 
+# Per-image processing and CLI entrypoint helpers.
 def process_image(source_path, output_dir, output_stem) -> dict[str, object]:
     """Process one image and write all derived artifacts."""
     # Load the current input image and build the thresholded filter input.

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 from urllib.request import urlretrieve
 
+# Repository-local paths and profile defaults used by the Q7 wrapper.
 QUESTION_DIR = Path(__file__).resolve().parent
 REPO_ROOT = QUESTION_DIR.parent
 DEFAULT_REPO_DIR = REPO_ROOT / "external" / "Transfer-Learning-Library"
@@ -98,6 +99,7 @@ PROFILE_DEFAULTS = {
     },
 }
 
+# External dataset locations used by the dataset bootstrap modes.
 DATASET_SPECS = {
     "VOC2007": {
         "dir_name": "VOC2007",
@@ -389,11 +391,7 @@ def validate_dataset_dir(label, path) -> None:
         )
 
 
-def validate_source_only_inputs(
-    object_detection_dir,
-    dataset_paths,
-    config_file,
-) -> None:
+def validate_source_only_inputs(object_detection_dir, dataset_paths, config_file) -> None:
     """Check the source-only inputs before running TLlib."""
     # The detector config file must exist before any TLlib script can start.
     if not config_file.exists():
@@ -410,12 +408,7 @@ def validate_source_only_inputs(
         raise FileNotFoundError(f"source_only.py not found in {object_detection_dir}")
 
 
-def validate_dadapt_inputs(
-    dadapt_dir,
-    dataset_paths,
-    config_file,
-    weights,
-) -> None:
+def validate_dadapt_inputs(dadapt_dir, dataset_paths, config_file, weights) -> None:
     """Check the D-adapt inputs before running TLlib."""
     # Reuse the baseline validation first because D-adapt needs the same datasets and config.
     validate_source_only_inputs(dadapt_dir.parent, dataset_paths, config_file)
@@ -556,11 +549,7 @@ def copy_subset_files(source_dir, dest_dir, image_ids) -> None:
             shutil.copy2(matched, dest_dir / subdir / matched.name)
 
 
-def create_smoke_subset(
-    source_dir,
-    dest_dir,
-    split_counts,
-) -> None:
+def create_smoke_subset(source_dir, dest_dir, split_counts) -> None:
     """Create one reduced smoke-test dataset copy."""
     # Reuse an existing subset only when every tracked split still has the right size.
     if dataset_layout_ok(dest_dir):
@@ -655,12 +644,7 @@ def ensure_full_datasets(dataset_paths, allow_download) -> None:
             ensure_trainval_split(target_dir)
 
 
-def ensure_smoke_subsets(
-    full_dataset_paths,
-    smoke_dataset_paths,
-    smoke_train_count,
-    smoke_test_count,
-) -> None:
+def ensure_smoke_subsets(full_dataset_paths, smoke_dataset_paths, smoke_train_count, smoke_test_count) -> None:
     # Each dataset gets its own reduced clone so smoke mode can point TLlib at a
     # separate root instead of mutating or trimming the full datasets.
     """Make sure the smoke subsets are available."""
@@ -732,13 +716,7 @@ def append_cfg_override(command, key, value) -> None:
     command.extend([key, str(value)])
 
 
-def build_source_only_command(
-    python_bin,
-    config_file,
-    dataset_paths,
-    output_dir,
-    args,
-) -> list[str]:
+def build_source_only_command(python_bin, config_file, dataset_paths, output_dir, args) -> list[str]:
     # This stage trains the baseline detector on VOC and evaluates it on both
     # VOC2007 test and the target-domain Clipart set.
     """Build the source-only training command."""
@@ -780,16 +758,7 @@ def build_source_only_command(
     return command
 
 
-def build_dadapt_command(
-    python_bin,
-    config_file,
-    dataset_paths,
-    output_dir,
-    model_weights,
-    phase_index,
-    phase_confidence_ratio,
-    args,
-) -> list[str]:
+def build_dadapt_command(python_bin, config_file, dataset_paths, output_dir, model_weights, phase_index, phase_confidence_ratio, args) -> list[str]:
     # D-adapt keeps the same detector backbone/config but adds TLlib's category
     # and bbox adaptor training around a starting checkpoint.
     """Build one D-adapt phase command."""
@@ -852,14 +821,7 @@ def build_dadapt_command(
     return command
 
 
-def build_visualize_command(
-    python_bin,
-    config_file,
-    dataset_paths,
-    save_path,
-    model_weights,
-    args,
-) -> list[str]:
+def build_visualize_command(python_bin, config_file, dataset_paths, save_path, model_weights, args) -> list[str]:
     # Reuse TLlib's visualization script to render predictions from one checkpoint.
     """Build the visualization command."""
     command = [
@@ -888,11 +850,7 @@ def build_visualize_command(
     return command
 
 
-def resolve_visualize_config(
-    stage_name,
-    source_config_file,
-    dadapt_config_file,
-) -> Path:
+def resolve_visualize_config(stage_name, source_config_file, dadapt_config_file) -> Path:
     # D-adapt checkpoints belong with the D-adapt config; the source-only
     # baseline keeps the original detector config.
     """Pick the config file for visualization."""
@@ -926,14 +884,7 @@ def run_command(command, cwd, dry_run) -> None:
     subprocess.run(command, cwd=cwd, check=True)
 
 
-def maybe_run_stage(
-    stage_name,
-    command,
-    cwd,
-    expected_output,
-    dry_run,
-    force,
-) -> None:
+def maybe_run_stage(stage_name, command, cwd, expected_output, dry_run, force) -> None:
     # Treat a completed checkpoint directory as the contract for that stage.
     # This keeps the pipeline resumable across repeated runs.
     """Run one stage only when it needs work."""
@@ -1001,11 +952,7 @@ def parse_eval_metrics_from_log(log_path) -> dict[str, Any] | None:
     return table_metrics or None
 
 
-def summarize_stage(
-    stage_name,
-    output_dir,
-    visualization_dir=None,
-) -> dict[str, Any]:
+def summarize_stage(stage_name, output_dir, visualization_dir=None) -> dict[str, Any]:
     """Summarize the outputs from one stage."""
     # Resolve the common stage artifacts from the output directory.
     log_path = output_dir / "log.txt"
@@ -1117,11 +1064,7 @@ def collect_environment_summary(python_bin) -> dict[str, str]:
     return summary
 
 
-def resolve_model_device(
-    requested_device,
-    python_bin,
-    env_summary,
-) -> str:
+def resolve_model_device(requested_device, python_bin, env_summary) -> str:
     # 'auto' means "ask the actual runtime" rather than guessing from the host.
     # If torch is missing or fails to import, fall back to CPU deterministically.
     """Pick the runtime device to use."""
@@ -1181,11 +1124,7 @@ def resolve_dataset_paths(args) -> tuple[dict[str, Path], dict[str, Path], dict[
     return full_paths, smoke_paths, active_paths
 
 
-def resolve_config_file(
-    config_file_value,
-    primary_dir,
-    fallback_dir=None,
-) -> Path:
+def resolve_config_file(config_file_value, primary_dir, fallback_dir=None) -> Path:
     # Accept either an absolute path or the same relative path anchored under
     # TLlib's source-only and D-adapt folders.
     """Resolve the config file path."""
@@ -1216,13 +1155,7 @@ def determine_latest_phase(adapt_output_root, phase_count) -> int | None:
     return latest
 
 
-def resolve_stage_weights(
-    stage,
-    source_output_dir,
-    adapt_output_root,
-    phase_count,
-    allow_missing_latest=False,
-) -> tuple[str, Path]:
+def resolve_stage_weights(stage, source_output_dir, adapt_output_root, phase_count, allow_missing_latest=False) -> tuple[str, Path]:
     # Visualization/reporting can target the baseline or the latest completed
     # adaptation phase, so centralize that checkpoint selection logic here.
     """Resolve which checkpoint weights to use for a stage."""
@@ -1246,12 +1179,7 @@ def resolve_stage_weights(
 
 # The parser exposes both the high-level modes and the most important TLlib knobs,
 # while profile defaults fill in the rest.
-def print_doctor_summary(
-    env_summary,
-    import_probe,
-    full_dataset_paths,
-    smoke_dataset_paths,
-) -> None:
+def print_doctor_summary(env_summary, import_probe, full_dataset_paths, smoke_dataset_paths) -> None:
     # doctor prints dependency and dataset readiness without running training.
     """Print the environment and dataset summary."""
     print("Environment summary:", flush=True)

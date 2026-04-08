@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Prepare the repo-local FasterRCNN clone and virtual environment used by the
+# tracked Q3 wrapper. The setup keeps both the CUDA-backed PyTorch path and the
+# optional TF2 CPU fallback under one reproducible OSC baseline.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEFAULT_REPO_DIR="${REPO_ROOT}/external/FasterRCNN"
@@ -39,6 +43,7 @@ if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Clone or reuse the upstream repository before rebuilding the environment.
 # Create the parent directory before cloning into it.
 mkdir -p "$(dirname "${REPO_DIR}")"
 
@@ -145,6 +150,7 @@ PY
   printf '%s\n' "${VALIDATION_OUTPUT}"
 fi
 
+# Finish by printing the shortest manual next-step sequence for the local clone.
 # Print the next commands for the prepared environment.
 cat <<EOF
 Setup complete.

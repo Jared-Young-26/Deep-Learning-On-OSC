@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Prepare the repo-local TLlib checkout used by the tracked Q7 wrapper. This
+# setup script also owns the small compatibility repairs that keep TLlib usable
+# on the OSC-validated dependency stack.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEFAULT_REPO_DIR="${REPO_ROOT}/external/Transfer-Learning-Library"
@@ -27,6 +31,7 @@ if [[ -z "${PYTHON_BIN}" ]]; then
 fi
 
 compiler_banner() {
+  # Print one short compiler banner for diagnostics without failing setup.
   local compiler="${1:-}"
   if [[ -z "${compiler}" ]]; then
     return 0
@@ -35,12 +40,16 @@ compiler_banner() {
 }
 
 compiler_looks_nvhpc() {
+  # Detect NVHPC-style compiler wrappers because Detectron2 builds more
+  # reliably on OSC when GCC is selected explicitly instead.
   local banner
   banner="$(compiler_banner "${1:-}")"
   [[ "${banner}" == *"NVIDIA"* || "${banner}" == *"NVHPC"* || "${banner}" == *"PGI"* || "${banner}" == *"nvc++"* || "${banner}" == *"nvc "* ]]
 }
 
 apply_tllib_torchvision_compat() {
+  # Apply the local source edits that keep the checked-out TLlib revision
+  # compatible with the repo's validated torchvision / detectron2 stack.
   "${PYTHON_BIN}" - <<'PY'
 from pathlib import Path
 import re

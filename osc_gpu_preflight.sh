@@ -18,8 +18,7 @@ osc_prepare_gpu_environment() {
 }
 
 osc_gpu_allocation_hint() {
-  # Centralize the user-facing recovery hint so every wrapper prints the same
-  # next step when CUDA was requested from a login node or CPU-only job.
+  # Keep the recovery hint consistent across repo-owned wrappers.
   local target="${1:-the requested command}"
   cat >&2 <<EOF
 Request an OSC GPU allocation before running ${target}.

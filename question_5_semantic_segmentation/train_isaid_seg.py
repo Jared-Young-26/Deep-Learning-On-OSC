@@ -110,7 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def resolve_training_model(raw_model) -> str:
     """Resolve the model input used to start training."""
-    # Resolve the user input into the exact model value YOLO should load.
+    # Resolve the requested model into the exact value YOLO should load.
     model_value = resolve_model_argument(raw_model)
     if is_url(model_value):
         return model_value
@@ -132,7 +132,7 @@ def main() -> int:
     # Resolve the upstream repo path before touching the environment.
     repo_dir = ensure_ultralytics_repo(resolve_repo_dir(args.repo_dir))
 
-    # Resolve the user-facing paths once so later steps reuse the same values.
+    # Resolve the shared paths once so later steps reuse the same values.
     resolved_model = resolve_model_argument(args.model) if args.dry_run else resolve_training_model(args.model)
     data_yaml = resolve_question_path(args.data)
     project_dir = resolve_question_path(args.project)
@@ -227,7 +227,7 @@ def main() -> int:
         """Cap validation batch size on OSC to reduce host-memory pressure."""
 
         def check_resume(self, overrides):
-            """Keep the caller-requested epoch count when resuming training."""
+            """Keep the requested epoch count when resuming training."""
             super().check_resume(overrides)
             if self.resume and "epochs" in overrides:
                 self.args.epochs = overrides["epochs"]
@@ -293,7 +293,7 @@ def main() -> int:
         "plots": args.plots,
         "task": "segment",
     }
-    # Pass the device only when the caller explicitly set one.
+    # Pass the device only when it was set explicitly.
     if args.device:
         train_kwargs["device"] = args.device
     if args.resume:

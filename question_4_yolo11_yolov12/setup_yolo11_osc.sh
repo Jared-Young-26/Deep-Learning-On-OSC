@@ -80,15 +80,15 @@ python -m pip install --upgrade pip setuptools wheel
 # Install the clone in editable mode so imports resolve to this checkout.
 pip install -e .
 
-# Finish by printing the recommended OSC batch command for the prepared runtime.
-# Print the next commands for the prepared environment.
+# Print the reference commands for the prepared runtime.
 cat <<EOF2
 YOLO11 setup complete.
 
-Next steps:
-  1) cd "${REPO_DIR}"
-  2) source .venv/bin/activate
-  3) cd "${SCRIPT_DIR}"
-  4) bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 01:00:00 -- python3.9 demo_yolo11.py --repo-dir "${REPO_DIR}" --device 0
-     # Use --device cpu instead when you want CPU inference explicitly.
+Reference Commands:
+  Activate runtime:
+    cd "${REPO_DIR}" && source .venv/bin/activate
+  OSC GPU demo:
+    cd "${SCRIPT_DIR}" && bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 01:00:00 -- python3.9 demo_yolo11.py --repo-dir "${REPO_DIR}" --device 0
+  CPU demo:
+    cd "${SCRIPT_DIR}" && python3.9 demo_yolo11.py --repo-dir "${REPO_DIR}" --device cpu
 EOF2

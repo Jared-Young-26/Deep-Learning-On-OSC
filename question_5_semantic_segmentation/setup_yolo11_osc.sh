@@ -194,33 +194,23 @@ else
   echo "Skipping automatic Q5 dataset bootstrap because AUTO_BOOTSTRAP_DATASET=${AUTO_BOOTSTRAP_DATASET}."
 fi
 
-# Finish by printing the shortest follow-up commands for manual bootstrap,
-# training, and inference.
-# Print the next commands for the prepared environment.
+# Print the reference commands for the prepared environment.
 cat <<EOF2
 YOLO11 segmentation setup complete.
 
-You can run this setup from either directory:
-  Repo root:
-    bash question_5_semantic_segmentation/setup_yolo11_osc.sh
-  Inside question_5_semantic_segmentation:
-    bash setup_yolo11_osc.sh
+Reference Commands:
+  Dataset bootstrap:
+    ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/bootstrap_isaid_seg.py" --repo-dir "${REPO_DIR}" --download-dataset
+  OSC GPU training:
+    bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 04:00:00 -- ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/train_isaid_seg.py" --repo-dir "${REPO_DIR}" --device 0
+  CPU inference:
+    ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/demo_yolo_segmentation.py" --repo-dir "${REPO_DIR}" --device cpu
 
-Next steps:
-  1) If you need to rerun dataset preparation manually:
-     ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/bootstrap_isaid_seg.py" --repo-dir "${REPO_DIR}" --download-dataset
-
-  2) Fine-tune on iSAID and save question_5_semantic_segmentation/models/isaid_seg/best.pt:
-     bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 04:00:00 -- ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/train_isaid_seg.py" --repo-dir "${REPO_DIR}" --device 0
-
-  3) Run the forward-only segmentation demo on your satellite images:
-     ${REPO_DIR}/.venv/bin/python "${SCRIPT_DIR}/demo_yolo_segmentation.py" --repo-dir "${REPO_DIR}" --device cpu
-
-Repo-local demo input folder:
+Prepared Input Folder:
   ${SCRIPT_DIR}/inputs/satellite_images
 
-Repo-local demo output folder:
+Prepared Output Folder:
   ${SCRIPT_DIR}/outputs/satellite_results
 
-Set AUTO_BOOTSTRAP_DATASET=0 if you want setup without the dataset download step.
+AUTO_BOOTSTRAP_DATASET=0 disables the dataset download step during setup.
 EOF2

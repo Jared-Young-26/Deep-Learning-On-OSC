@@ -115,15 +115,15 @@ else
   echo "Skipping flash-attn install under the supported Python ${SUPPORTED_PYTHON_VERSION} OSC baseline."
 fi
 
-# Finish by printing the recommended OSC batch command for the prepared runtime.
-# Print the next commands for the prepared environment.
+# Print the reference commands for the prepared runtime.
 cat <<EOF2
 YOLOv12 setup complete.
 
-Next steps:
-  1) cd "${REPO_DIR}"
-  2) source .venv/bin/activate
-  3) cd "${SCRIPT_DIR}"
-  4) bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 01:00:00 -- python3.9 demo_yolov12.py --repo-dir "${REPO_DIR}" --device 0
-     # Add --device cpu when you want CPU inference explicitly.
+Reference Commands:
+  Activate runtime:
+    cd "${REPO_DIR}" && source .venv/bin/activate
+  OSC GPU demo:
+    cd "${SCRIPT_DIR}" && bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 01:00:00 -- python3.9 demo_yolov12.py --repo-dir "${REPO_DIR}" --device 0
+  CPU demo:
+    cd "${SCRIPT_DIR}" && python3.9 demo_yolov12.py --repo-dir "${REPO_DIR}" --device cpu
 EOF2

@@ -45,7 +45,7 @@ DEVICE="$("${PYTHON_BIN}" -c "import torch; print('cuda' if torch.cuda.is_availa
 if [[ "${DEVICE}" != "cuda" && "${ALLOW_CPU}" != "1" ]]; then
   echo "Error: CUDA is not available in ${PYTHON_BIN}."
   echo "A GPU allocation exists, but the TLlib runtime still resolved to CPU."
-  echo "Rebuild the environment on the allocated node, or set ALLOW_CPU=1 only when you want CPU validation."
+  echo "Rebuild the environment on the allocated node, or set ALLOW_CPU=1 for CPU validation."
   exit 2
 fi
 

@@ -75,8 +75,8 @@ bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- \
   --device 0
 ```
 
-By default, `demo_yolov12.py` expects the repo-local YOLOv12 checkout at
-`external/yolov12`. Pass `--repo-dir` if you cloned YOLOv12 somewhere else.
+By default, `demo_yolov12.py` uses the repo-local YOLOv12 checkout at
+`external/yolov12`. `--repo-dir` selects a different clone location.
 
 YOLOv12 on one local image with CPU inference:
 
@@ -111,8 +111,7 @@ python3.9 question_4_yolo11_yolov12/demo_yolov12.py \
 
 - On OSC, request the GPU node first with `bash osc_gpu_batch.sh` or open one
   with `bash osc_gpu_interactive.sh` before using `--device 0`.
-- Use `--device cpu` on CPU-only systems or when you want to avoid GPU
-  inference.
+- `--device cpu` selects CPU inference on CPU-only systems or in GPU-free runs.
 - Python 3.9.18 is the supported OSC baseline for both YOLO11 and YOLOv12.
 - Supported input suffixes are `.jpg`, `.jpeg`, `.png`, `.bmp`, and `.webp`.
 - `INSTALL_FLASH_ATTN=1 bash question_4_yolo11_yolov12/setup_yolov12_osc.sh`

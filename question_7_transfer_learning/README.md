@@ -30,7 +30,7 @@ Upstream references:
 
 ## Setup
 
-Run from the repository root:
+Repository-root setup command:
 
 ```bash
 bash question_7_transfer_learning/setup_tllib_osc.sh
@@ -49,9 +49,9 @@ INSTALL_DETECTRON2=1 bash question_7_transfer_learning/setup_tllib_osc.sh
 REPAIR_ONLY=1 bash question_7_transfer_learning/setup_tllib_osc.sh
 ```
 
-On Linux/OSC, the setup script now forces Detectron2 to build with GNU
-`gcc/g++` by default. If your shell exposes NVHPC-style compilers first, rerun
-setup with explicit overrides:
+On Linux/OSC, the setup script forces Detectron2 to build with GNU `gcc/g++`
+by default. If the shell exposes NVHPC-style compilers first, this override
+keeps the toolchain explicit:
 
 ```bash
 DETECTRON2_CC=$(command -v gcc) DETECTRON2_CXX=$(command -v g++) \
@@ -71,21 +71,20 @@ The default upstream clone location is `external/Transfer-Learning-Library`.
 
 ## Doctor Check
 
-Verify the environment before training:
+Environment doctor command:
 
 ```bash
 python3.9 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor
 ```
 
-If Q7 fails during readiness, rerun only the TLlib setup step first rather than
-the full assignment:
+Setup-only recovery command for Q7 readiness failures:
 
 ```bash
 env INSTALL_TORCH=1 INSTALL_DETECTRON2=1 \
   bash question_7_transfer_learning/setup_tllib_osc.sh
 ```
 
-Run only the idempotent compatibility repair on an existing clone:
+Repair-only command for an existing clone:
 
 ```bash
 env REPAIR_ONLY=1 \
@@ -95,8 +94,8 @@ env REPAIR_ONLY=1 \
 The doctor mode checks the Python environment, required modules, dataset
 locations, and resolved device selection.
 
-If you still see `ImportError: cannot import name 'model_urls'` on OSC, update
-the OSC checkout itself before rerunning Q7:
+For persistent `ImportError: cannot import name 'model_urls'` on OSC, refresh
+the checkout before rerunning Q7:
 
 ```bash
 git pull
@@ -118,14 +117,14 @@ from torchvision.models.resnet import BasicBlock, Bottleneck
   adaptation batches.
 - `benchmark` uses the full datasets and benchmark output locations. On OSC it
   now defaults all Detectron2 and D-adapt data-loader worker pools to `0` to
-  avoid Slurm host-memory OOMs; raise them manually only if your allocation has
+  avoid Slurm host-memory OOMs; raise them manually only if the allocation has
   headroom. The OSC preflight also repairs stale VOC-style annotation sizes in
   TLlib so Clipart examples with mismatched XML `width`/`height` metadata do
   not trip Detectron2 size checks.
 
 ## Smoke Profile
 
-Run the full smoke pipeline:
+Full smoke pipeline:
 
 ```bash
 python3.9 question_7_transfer_learning/demo_tllib_object_detection.py \
@@ -134,7 +133,7 @@ python3.9 question_7_transfer_learning/demo_tllib_object_detection.py \
   --download-datasets
 ```
 
-Force a fresh smoke rerun:
+Forced smoke rerun:
 
 ```bash
 python3.9 question_7_transfer_learning/demo_tllib_object_detection.py \
@@ -146,30 +145,30 @@ python3.9 question_7_transfer_learning/demo_tllib_object_detection.py \
 
 ## Benchmark Profile
 
-Run the helper script on a prepared environment:
+Helper script on a prepared environment:
 
 ```bash
 bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 01:00:00 -- \
   bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
-This is the recommended morning command after a plain `git pull`; the helper
-now repairs or bootstraps the TLlib clone automatically before running Q7.
+This helper repairs or bootstraps the TLlib clone automatically before running
+Q7.
 
-Run the helper with the benchmark profile instead:
+Helper script with the benchmark profile:
 
 ```bash
 bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
   env PROFILE=benchmark bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
-Force a fresh rerun:
+Forced rerun:
 
 ```bash
 FORCE=1 bash question_7_transfer_learning/run_tllib_osc.sh
 ```
 
-Allow CPU execution explicitly when CUDA is unavailable:
+Explicit CPU execution when CUDA is unavailable:
 
 ```bash
 ALLOW_CPU=1 PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
@@ -177,7 +176,7 @@ ALLOW_CPU=1 PROFILE=smoke bash question_7_transfer_learning/run_tllib_osc.sh
 
 ## Direct Wrapper Usage
 
-Run the benchmark pipeline directly through the Python wrapper:
+Benchmark pipeline through the Python wrapper:
 
 ```bash
 bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \

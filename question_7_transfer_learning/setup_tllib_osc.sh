@@ -426,8 +426,8 @@ if [[ "${INSTALL_DETECTRON2}" == "1" ]]; then
   fi
 fi
 
-# Report the next steps plus whether Detectron2 is ready, since that is the most
-# common blocker for the downstream Python driver.
+# Report the reference commands plus the Detectron2 status, which is the most
+# common downstream blocker.
 if python -c "import detectron2" >/dev/null 2>&1; then
   DETECTRON2_STATUS="installed"
 else
@@ -437,24 +437,24 @@ fi
 cat <<EOF
 TLlib setup complete.
 
-Next steps:
-  1) cd "${REPO_DIR}"
-  2) source .venv/bin/activate
-  3) cd "${SCRIPT_DIR}"
-  4) python3.9 demo_tllib_object_detection.py --repo-dir "${REPO_DIR}" --mode doctor
-  5) bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 04:00:00 -- bash run_tllib_osc.sh
+Reference Commands:
+  Activate runtime:
+    cd "${REPO_DIR}" && source .venv/bin/activate
+  Doctor:
+    cd "${SCRIPT_DIR}" && python3.9 demo_tllib_object_detection.py --repo-dir "${REPO_DIR}" --mode doctor
+  OSC pipeline:
+    cd "${SCRIPT_DIR}" && bash "${REPO_ROOT}/osc_gpu_batch.sh" --account <OSC_ACCOUNT> --time 04:00:00 -- bash run_tllib_osc.sh
 
-Optional:
+Optional Setup Flags:
   INSTALL_TORCH=1 bash setup_tllib_osc.sh
   INSTALL_DETECTRON2=1 bash setup_tllib_osc.sh
 
-Object detection notes:
+Object Detection Notes:
   - Installed for source_only.py: torch/tllib base deps + timm
   - Full-pipeline runs also need detectron2 because TLlib's object-detection
     scripts are Detectron2-based under the hood
   - detectron2 status: ${DETECTRON2_STATUS}
-  - If detectron2 is still missing, the demo wrapper will stop with a preflight
-    error before training starts. Install detectron2 manually for your Python /
-    Torch / CUDA platform, or rerun with INSTALL_DETECTRON2=1 if that matches
-    your environment.
+  - Missing detectron2 stops the demo wrapper during preflight before training.
+  - INSTALL_DETECTRON2=1 rebuilds detectron2 when the local Python / Torch /
+    CUDA combination is compatible.
 EOF

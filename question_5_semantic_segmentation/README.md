@@ -27,7 +27,7 @@ project layout than this assignment repository.
 
 ## Setup
 
-Run from the repository root:
+Repository-root setup command:
 
 ```bash
 bash question_5_semantic_segmentation/setup_yolo11_osc.sh
@@ -48,8 +48,7 @@ The default upstream clone location is `external/ultralytics`.
 
 ## Dataset Bootstrap
 
-Run the bootstrap script directly when you want to repair or refresh dataset
-preparation:
+Dataset bootstrap command:
 
 ```bash
 external/ultralytics/.venv/bin/python \
@@ -57,7 +56,7 @@ external/ultralytics/.venv/bin/python \
   --repo-dir external/ultralytics
 ```
 
-If the raw dataset is not present yet, let the script download it:
+Dataset bootstrap with raw-download step:
 
 ```bash
 external/ultralytics/.venv/bin/python \
@@ -87,7 +86,7 @@ question_5_semantic_segmentation/datasets/raw/isaid/
 
 ## Training
 
-Run training from the repository root:
+Repository-root training command:
 
 ```bash
 bash osc_gpu_batch.sh --account <OSC_ACCOUNT> --time 04:00:00 -- \
@@ -121,9 +120,7 @@ The canonical resumable checkpoint is:
 
 - `question_5_semantic_segmentation/runs/segment/train/isaid_yolo11s_seg/weights/last.pt`
 
-If a run is interrupted after it has started writing checkpoints, rerun the
-wrapper with `--resume` and it will continue from that `last.pt` while keeping
-the safer OSC defaults:
+Resumed training command from `last.pt`:
 
 ```bash
 external/ultralytics/.venv/bin/python \
@@ -137,7 +134,7 @@ The repo-root orchestrator follows the same rule automatically: it skips Q5 if
 `models/isaid_seg/best.pt` already exists, resumes from `last.pt` when that
 alias is missing, and otherwise starts a fresh run.
 
-For a short functional CPU check, reduce the workload explicitly:
+Short CPU validation command:
 
 ```bash
 external/ultralytics/.venv/bin/python \
@@ -151,7 +148,7 @@ external/ultralytics/.venv/bin/python \
 
 ## Inference
 
-Run the batch demo on the default input directory:
+Batch inference on the default input directory:
 
 ```bash
 external/ultralytics/.venv/bin/python \
@@ -160,7 +157,7 @@ external/ultralytics/.venv/bin/python \
   --device cpu
 ```
 
-Run on one specific image:
+Single-image inference:
 
 ```bash
 external/ultralytics/.venv/bin/python \
@@ -170,7 +167,7 @@ external/ultralytics/.venv/bin/python \
   --device cpu
 ```
 
-Limit output to selected classes when needed:
+Filtered-class inference:
 
 ```bash
 external/ultralytics/.venv/bin/python \

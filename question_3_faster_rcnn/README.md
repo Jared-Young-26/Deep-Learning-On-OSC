@@ -123,6 +123,6 @@ python3.9 question_3_faster_rcnn/demo_fasterrcnn.py \
 - If setup completed on an older revision and the TF2 fallback now fails with
   NumPy or Matplotlib import errors, remove `external/FasterRCNN/.venv` and rerun
   `bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh`.
-- If you only need the CUDA-backed PyTorch path on a GPU node, use
-  `INSTALL_TF2=0 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` for the
-  faster GPU-only setup.
+- For the CUDA-backed PyTorch path on a GPU node,
+  `INSTALL_TF2=0 bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh` provides
+  the faster GPU-only setup.

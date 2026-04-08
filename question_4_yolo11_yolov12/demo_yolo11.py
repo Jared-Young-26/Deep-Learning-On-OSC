@@ -58,7 +58,7 @@ predict_kwargs = {
     "name": args.name,
     "exist_ok": True,
 }
-# Pass the device only when the caller provided one.
+# Pass the device only when it was set.
 if args.device:
     predict_kwargs["device"] = args.device
 
@@ -137,7 +137,7 @@ def runtime_cuda_available(python_bin) -> bool:
 
 
 def ensure_gpu_device_ready(python_bin, device) -> None:
-    """Fail fast when the caller explicitly requested CUDA without a GPU node."""
+    """Fail fast when CUDA was requested without a GPU-ready runtime."""
     if not device_requests_gpu(device):
         return
     if runtime_cuda_available(python_bin):
@@ -148,7 +148,7 @@ def ensure_gpu_device_ready(python_bin, device) -> None:
         "Example: "
         f"bash {OSC_GPU_BATCH_LAUNCHER_NAME} --account <OSC_ACCOUNT> --time 01:00:00 -- "
         "python3.9 question_4_yolo11_yolov12/demo_yolo11.py --device 0\n"
-        "Use --device cpu only when you intend to run inference on CPU."
+        "`--device cpu` selects CPU inference."
     )
 
 
@@ -232,7 +232,7 @@ def is_url(source) -> bool:
 
 def resolve_source(source) -> tuple[str, Path | None]:
     """Resolve the input source into a URL or one absolute path."""
-    # Normalize the user input into either a raw URL string or one absolute local path.
+    # Normalize the source value into either a raw URL string or one absolute local path.
     # Return URLs unchanged and mark them as non-path inputs.
     if is_url(source):
         return source, None

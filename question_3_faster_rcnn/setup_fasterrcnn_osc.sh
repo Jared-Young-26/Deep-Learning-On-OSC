@@ -150,15 +150,15 @@ PY
   printf '%s\n' "${VALIDATION_OUTPUT}"
 fi
 
-# Finish by printing the shortest manual next-step sequence for the local clone.
-# Print the next commands for the prepared environment.
+# Print the reference commands for the prepared environment.
 cat <<EOF
 Setup complete.
 
-Next steps:
-  1) source "${REPO_DIR}/.venv/bin/activate"
-  2) cd "${SCRIPT_DIR}"
-  3) bash download_models_fasterrcnn.sh
-  4) cd "${SCRIPT_DIR}"
-  5) python3.9 demo_fasterrcnn.py --repo-dir "${REPO_DIR}"
+Reference Commands:
+  Activate runtime:
+    source "${REPO_DIR}/.venv/bin/activate"
+  Download checkpoints:
+    cd "${SCRIPT_DIR}" && bash download_models_fasterrcnn.sh
+  Run demo:
+    cd "${SCRIPT_DIR}" && python3.9 demo_fasterrcnn.py --repo-dir "${REPO_DIR}"
 EOF

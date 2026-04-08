@@ -83,7 +83,7 @@ quote_command() {
 }
 
 fail() {
-  # Prefer one consistent fatal-error path so callers always get a shell error.
+  # Keep fatal errors on one shared exit path.
   echo "Error: $*" >&2
   exit 1
 }

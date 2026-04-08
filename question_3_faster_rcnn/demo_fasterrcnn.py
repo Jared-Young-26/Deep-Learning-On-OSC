@@ -347,7 +347,7 @@ def is_url(value) -> bool:
 
 def infer_backbone(weights) -> str | None:
     # Some upstream PyTorch checkpoints require the backbone name separately,
-    # so infer it from the filename when the user does not pass --backbone.
+    # so infer it from the filename when --backbone is omitted.
     """Infer the backbone name from the weight path."""
     token_map = {
         "vgg16-torch": "vgg16-torch",
@@ -513,7 +513,7 @@ def resolve_framework(requested_framework, python_bin, repo_dir) -> str:
         f"{python_bin}.\n"
         "The upstream PyTorch path requires CUDA, and the TF2 fallback must "
         "import numpy, matplotlib.pyplot, and tensorflow together.\n"
-        f"If you want the PyTorch path on OSC, request the GPU node first. Example: {osc_gpu_batch_example()}\n"
+        f"PyTorch execution on OSC requires a GPU node. Example: {osc_gpu_batch_example()}\n"
         f"Remove {repo_dir / '.venv'} and rerun "
         "`bash question_3_faster_rcnn/setup_fasterrcnn_osc.sh`, or run on a "
         "CUDA-enabled system."
@@ -639,8 +639,8 @@ def discover_directory_images(input_root) -> list[Path]:
         if input_root.resolve() == DEFAULT_INPUTS_DIR.resolve()
         else None
     )
-    # If the user points at the whole inputs/ directory, skip the downloaded-cache
-    # subtree so batch runs only process the examples they intentionally collected.
+    # If --image points at the whole inputs/ directory, skip the downloaded-cache
+    # subtree so batch runs only process the curated examples.
     images = [
         path
         for path in sorted(input_root.rglob("*"))
@@ -658,9 +658,9 @@ def discover_directory_images(input_root) -> list[Path]:
 
 
 def resolve_input_selection(repo_dir, image, dry_run=False) -> InputSelection:
-    # Convert the user-facing --image argument into one normalized list of jobs.
+    # Convert --image into one normalized list of jobs.
     # Everything downstream can then treat single-image and batch mode uniformly.
-    """Turn the user input into one normalized job selection."""
+    """Turn the input selection into one normalized job list."""
     if is_url(image):
         # Download the URL into the local cache and build a one-job selection.
         local_image = cache_remote_image(image, dry_run=dry_run)
@@ -785,7 +785,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--repo-dir",
         default=str(DEFAULT_REPO_DIR),
         help=(
-            "Path to your local clone of https://github.com/trzy/FasterRCNN. "
+            "Path to the local clone of https://github.com/trzy/FasterRCNN. "
             "Defaults to <repo>/external/FasterRCNN."
         ),
     )
@@ -1006,7 +1006,7 @@ def main() -> int:
     output_paths, output_label = resolve_output_paths(selection, args.output, args.mode)
     backbone = args.backbone or infer_backbone(weights)
     # The upstream launcher wants a backbone name in addition to the checkpoint
-    # path, so infer it once here instead of asking the user to duplicate it.
+    # path, so infer it once here instead of duplicating it on the CLI.
 
     # Print one high-level summary before any subprocesses start.
     if args.dry_run or not args.verbose_command:

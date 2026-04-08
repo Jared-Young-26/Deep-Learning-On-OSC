@@ -12,7 +12,7 @@ scripts, orchestration, and reporting. Upstream model implementations stay in
 normalize path handling, environment setup, GPU checks, resumability, and
 artifact layout.
 
-Commands below assume you are running from the repository root with Python 3.9.18
+Commands below assume execution from the repository root with Python 3.9.18
 loaded on OSC.
 
 ## OSC Python Baseline
@@ -56,8 +56,7 @@ the same default GPU request.
 
 ## One-Command OSC Run
 
-Use the repo-root orchestrator when you want questions 3 through 7 to run in
-order from one command:
+The repo-root orchestrator runs questions 3 through 7 in order:
 
 ```bash
 bash run_assignment_osc.sh --account <OSC_ACCOUNT> --time 16:00:00
@@ -65,8 +64,8 @@ bash run_assignment_osc.sh --account <OSC_ACCOUNT> --time 16:00:00
 
 By default, this script:
 
-- self-submits one GPU batch job through `osc_gpu_batch.sh` when you launch it from an OSC login node
-- runs the staged pipeline directly when you are already inside a Slurm allocation
+- self-submits one GPU batch job through `osc_gpu_batch.sh` when launched from an OSC login node
+- runs the staged pipeline directly when already inside a Slurm allocation
 - reuses existing environments, model downloads, datasets, and heavy output sentinels when they already exist
 - resumes question 5 training from `question_5_semantic_segmentation/runs/segment/train/isaid_yolo11s_seg/weights/last.pt` when `best.pt` is missing but `last.pt` exists
 - defaults question 7 to the `smoke` profile
@@ -78,13 +77,13 @@ Useful flags:
 - `--cluster`, `--nodes`, `--gpus-per-node`, and `--job-name` are forwarded to `osc_gpu_batch.sh`
 - `--dry-run` prints either the self-submit command or the ordered inner stage plan without executing it
 
-The script uses `--inside-allocation` internally after self-submit. You
-normally do not need to pass that flag yourself.
+The script uses `--inside-allocation` internally after self-submit. That flag
+is normally omitted from direct invocations.
 
 For the Q5 training stage, the OSC-safe defaults are `imgsz=768`, `batch=1`,
 `workers=0`, and `close_mosaic=20` so the first epoch avoids the highest-memory
 augmentation path. The wrapper also skips per-epoch validation on OSC and only
-validates on the final epoch unless you opt back in. This repository keeps the
+validates on the final epoch unless per-epoch validation is re-enabled. This repository keeps the
 fix in the training wrapper and orchestrator behavior rather than adding Slurm
 `--mem` flags to the launchers.
 

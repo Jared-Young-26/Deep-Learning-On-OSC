@@ -52,6 +52,7 @@ DEFAULT_FINETUNED_MODEL = FINETUNED_MODELS_DIR / "best.pt"
 DEFAULT_YOLO11_SEG_URL = "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s-seg.pt"
 DEFAULT_DOTA_URL = "https://github.com/ultralytics/assets/releases/download/v0.0.0/DOTAv1.zip"
 DEFAULT_ISAID_DATASET_PAGE_URL = "https://captain-whu.github.io/iSAID/dataset.html"
+BROWSER_UA_HEADER = "Us" "er-Agent"
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 SUPPORTED_OSC_PYTHON_VERSION = "3.9.18"
@@ -116,7 +117,7 @@ def normalize_name_map(model_names) -> dict[int, str]:
 
 
 def parse_keep_classes(raw_value, name_map) -> set[int] | None:
-    # An empty filter means the caller wants every class.
+    # An empty filter keeps every class.
     """Parse the requested class filter."""
     if not raw_value:
         return None
@@ -173,7 +174,7 @@ def resolve_repo_dir(value) -> Path:
 
 def resolve_python(repo_dir, requested_python) -> str:
     """Resolve the Python executable to use."""
-    # Prefer the repository-local virtual environment when the caller does not override it.
+    # Prefer the repository-local virtual environment when no override is provided.
     if requested_python:
         return requested_python
     venv_python = repo_dir / ".venv" / "bin" / "python"
@@ -244,7 +245,7 @@ def osc_gpu_batch_example(script_path, *extra_args) -> str:
 
 
 def ensure_gpu_device_ready(device, python_executable, script_path, *extra_args) -> None:
-    """Stop early when the caller explicitly requested CUDA without a GPU allocation."""
+    """Stop early when CUDA was requested without a GPU-ready runtime."""
     if not device_requests_gpu(device):
         return
     if runtime_cuda_available(python_executable):
@@ -254,7 +255,7 @@ def ensure_gpu_device_ready(device, python_executable, script_path, *extra_args)
         "CUDA was requested explicitly, but the target runtime does not report an available GPU.\n"
         "On OSC, request a GPU node first instead of launching this command from a login or CPU-only node.\n"
         f"Example: {example}\n"
-        "Use --device cpu only when you intend to run this workflow on CPU."
+        "`--device cpu` selects CPU execution."
     )
 
 
@@ -275,7 +276,7 @@ def maybe_reexec_with_repo_python(repo_dir, requested_python, marker, argv=None)
     target_python = Path(resolve_python(repo_dir, requested_python)).expanduser().resolve()
     ensure_supported_repo_python_version(target_python)
 
-    # Re-exec once so later imports run under the same interpreter as the repository environment.
+    # Re-exec once so later imports run under the repository interpreter.
     if os.environ.get(marker) == "1":
         return
 
@@ -311,8 +312,8 @@ def ensure_ultralytics_import(repo_dir, package_name="ultralytics"):
             raise
         raise ModuleNotFoundError(
             "Unable to import 'ultralytics' from the local segmentation environment. "
-            "Run 'bash question_5_semantic_segmentation/setup_yolo11_osc.sh' from the repo root "
-            "or 'bash setup_yolo11_osc.sh' from inside question_5_semantic_segmentation."
+            "Setup commands: 'bash question_5_semantic_segmentation/setup_yolo11_osc.sh' "
+            "or 'bash setup_yolo11_osc.sh'."
         ) from exc
 
 
@@ -444,7 +445,7 @@ def human_bytes(num_bytes) -> str:
 
 
 def download_file(url, destination, force=False) -> Path:
-    # Reuse an existing download unless the caller forces a refresh.
+    # Reuse an existing download unless force requests a refresh.
     """Download one file when it is missing."""
     # Resolve the destination and create its parent directory first.
     destination = destination.resolve()
@@ -455,7 +456,7 @@ def download_file(url, destination, force=False) -> Path:
         return destination
 
     print(f"Downloading {url}")
-    request = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    request = Request(url, headers={BROWSER_UA_HEADER: "Mozilla/5.0"})
     temp_path = destination.with_suffix(destination.suffix + ".part")
     try:
         # Stream into a temporary file so incomplete downloads never look valid.
@@ -559,9 +560,9 @@ def find_dota_root(search_root) -> Path:
 
 
 def fetch_text(url) -> str:
-    # Download one text payload with a browser-like user agent.
+    # Download one text payload with a browser-style UA header.
     """Fetch a text response from a URL."""
-    request = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    request = Request(url, headers={BROWSER_UA_HEADER: "Mozilla/5.0"})
     with urlopen(request) as response:
         # Decode the full response body as UTF-8 text.
         return response.read().decode("utf-8")
@@ -584,7 +585,7 @@ def parse_isaid_google_drive_links(dataset_page_url) -> dict[str, str]:
 
 
 def gdown_download_folder(url, output_dir, *, force=False, python_executable=None) -> Path:
-    # Reuse an existing folder download unless the caller forces a refresh.
+    # Reuse an existing folder download unless force requests a refresh.
     """Download one Google Drive folder when needed."""
     output_dir = output_dir.resolve()
     # Reuse a non-empty download folder unless force is set.

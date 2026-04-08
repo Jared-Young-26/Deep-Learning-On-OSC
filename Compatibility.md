@@ -2,10 +2,10 @@
 
 This repository standardizes OSC on Python 3.9.18.
 
-This document records the repo-wide interpreter choice that the tracked setup
-scripts enforce. The goal is not to claim that every upstream dependency only
+This document records the repo-wide interpreter choice enforced by the tracked
+setup scripts. The goal is not to claim that every upstream dependency only
 works on Python 3.9.18 in isolation. The goal is to keep one stable OSC
-baseline across the repo so setup, repair, and grading instructions do not
+baseline across the repo so setup, repair, and review instructions do not
 drift by question directory.
 
 ## Decision
@@ -28,16 +28,16 @@ drift by question directory.
 
 ## Evidence
 
-- [question_3_faster_rcnn/setup_fasterrcnn_osc.sh](/Users/jaredyoung/Documents/Programs/GitHub/Deep-Learning-On-OSC/question_3_faster_rcnn/setup_fasterrcnn_osc.sh)
+- [question_3_faster_rcnn/setup_fasterrcnn_osc.sh](question_3_faster_rcnn/setup_fasterrcnn_osc.sh)
   installs the FasterRCNN PyTorch path plus the TF2 fallback path and enforces
   the shared OSC interpreter selection.
-- [question_7_transfer_learning/setup_tllib_osc.sh](/Users/jaredyoung/Documents/Programs/GitHub/Deep-Learning-On-OSC/question_7_transfer_learning/setup_tllib_osc.sh)
+- [question_7_transfer_learning/setup_tllib_osc.sh](question_7_transfer_learning/setup_tllib_osc.sh)
   installs the TLlib and Detectron2-backed object-detection stack and applies
   the compatibility repairs that were validated against the shared baseline.
 - [PyTorch 2.0.0 on PyPI](https://pypi.org/project/torch/2.0.0/)
   is the relevant upstream signal for the FasterRCNN PyTorch path.
 - [Detectron2 install docs](https://detectron2.readthedocs.io/en/latest/tutorials/install.html)
   are the relevant upstream signal for the TLlib object-detection path.
-- [external/ultralytics/pyproject.toml](/Users/jaredyoung/Documents/Programs/GitHub/Deep-Learning-On-OSC/external/ultralytics/pyproject.toml)
+- [external/ultralytics/pyproject.toml](external/ultralytics/pyproject.toml)
   and [PyTorch 2.2.2 on PyPI](https://pypi.org/project/torch/2.2.2/)
   support keeping the YOLO workflows on the shared 3.9.18 baseline.

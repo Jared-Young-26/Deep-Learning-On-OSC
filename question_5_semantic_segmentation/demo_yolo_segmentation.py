@@ -130,7 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
 def resolve_model_for_demo(raw_model) -> str:
     """Resolve the model input used for inference."""
     # Resolve the requested model before importing YOLO.
-    # Resolve the user input into the exact model value YOLO should load.
+    # Resolve the requested model into the exact value YOLO should load.
     model_value = resolve_model_argument(raw_model)
     if is_url(model_value):
         return model_value
@@ -256,7 +256,7 @@ def build_predict_kwargs(args) -> dict[str, object]:
         "retina_masks": True,
         "verbose": False,
     }
-    # Pass the device only when the caller explicitly set one.
+    # Pass the device only when it was set explicitly.
     if args.device:
         predict_kwargs["device"] = args.device
     return predict_kwargs
@@ -495,7 +495,7 @@ def run_predict(model, source, predict_kwargs):
     results = model.predict(source=source, **predict_kwargs)
     if not results:
         raise RuntimeError("No prediction results were returned.")
-    # Use the first result because the caller passes one source at a time.
+    # Use the first result because this wrapper passes one source at a time.
     return results[0]
 
 
@@ -544,7 +544,7 @@ def run_single_mode(model, source, args, keep_ids, name_map, predict_kwargs, *, 
     """Run the single-image flow."""
     source_path = None if is_url(source) else Path(source)
     overlay_path, class_ids_path, mask_path, summary_path = default_single_outputs(source, source_path)
-    # Apply any caller-provided output overrides one by one.
+    # Apply explicit output overrides one by one.
     if args.output_overlay:
         overlay_path = resolve_question_path(args.output_overlay)
     if args.output_class_ids:
@@ -570,7 +570,7 @@ def run_single_mode(model, source, args, keep_ids, name_map, predict_kwargs, *, 
     )
     write_json(summary_path, summary)
 
-    # Print the four artifact locations for the caller.
+    # Print the four artifact locations.
     print(f"Overlay:   {overlay_path.resolve()}")
     print(f"Class ids: {class_ids_path.resolve()}")
     print(f"Mask:      {mask_path.resolve()}")

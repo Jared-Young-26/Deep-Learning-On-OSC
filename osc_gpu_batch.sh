@@ -44,7 +44,7 @@ quote_command() {
   printf '%s' "${quoted[*]}"
 }
 
-# Parse launcher options until the user-provided command begins.
+# Parse launcher options until the wrapped command begins.
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --account)
@@ -127,7 +127,7 @@ cat >"${TMP_SCRIPT}" <<EOF
 EOF
 
 if [[ -n "${CLUSTER}" ]]; then
-  # Forward the optional cluster selection only when the caller set it.
+  # Forward the optional cluster selection only when it was set.
   printf '#SBATCH --cluster=%s\n' "${CLUSTER}" >>"${TMP_SCRIPT}"
 fi
 
@@ -148,8 +148,7 @@ exec ${COMMAND_STRING}
 EOF
 
 if [[ "${DRY_RUN}" == "1" ]]; then
-  # Print the generated submission script so the caller can audit it before
-  # running on OSC.
+  # Print the generated submission script before submission.
   cat "${TMP_SCRIPT}"
   exit 0
 fi

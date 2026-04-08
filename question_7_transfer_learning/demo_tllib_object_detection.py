@@ -86,7 +86,7 @@ PROFILE_DEFAULTS = {
     "benchmark": {
         # OSC allocations have been sensitive to host-memory pressure during
         # Detectron2 evaluation and D-adapt loader startup, so keep all worker
-        # pools single-process by default unless the user opts back in.
+        # pools single-process by default unless a CLI override raises them.
         "dataloader_workers": 0,
         "category_workers": 0,
         "bbox_workers": 0,
@@ -167,7 +167,7 @@ def apply_profile_defaults(args) -> argparse.Namespace:
     # Most runs need only the profile selection, so populate the remaining
     # stage settings from the chosen profile defaults.
     for field, value in PROFILE_DEFAULTS[args.profile].items():
-        # Only fill fields the user did not override explicitly.
+        # Only fill fields that remain unset after CLI parsing.
         if getattr(args, field) is None:
             setattr(args, field, value)
     return args
@@ -242,7 +242,7 @@ def run_python_probe(python_bin, code) -> str:
         capture_output=True,
         text=True,
     )
-    # Strip the trailing newline so callers can embed the value directly.
+    # Strip the trailing newline so the value can be embedded directly.
     return result.stdout.strip()
 
 
@@ -300,7 +300,7 @@ def validate_python_environment(python_bin) -> None:
         return
 
     # Stop before launching any long training job if the Detectron2 stack is not
-    # importable; that is the most common failure mode on a fresh environment.
+    # importable; that is the most common fresh-environment failure mode.
     missing_fmt = ", ".join(missing)
     raise RuntimeError(
         "The TLlib object-detection script cannot run yet because the environment is missing "
@@ -308,11 +308,10 @@ def validate_python_environment(python_bin) -> None:
         "This script launches TLlib's Detectron2-based object-detection pipeline, "
         "so detectron2 and timm must be installed before source_only.py or "
         "d_adapt.py can run.\n\n"
-        "Suggested next steps:\n"
-        "  1) bash question_7_transfer_learning/setup_tllib_osc.sh\n"
-        "  2) install detectron2 for your Python / Torch / CUDA platform "
-        "(or rerun setup with INSTALL_DETECTRON2=1 if compatible)\n"
-        "  3) rerun this script with --mode doctor or --mode full-pipeline\n"
+        "Reference commands:\n"
+        "  setup: bash question_7_transfer_learning/setup_tllib_osc.sh\n"
+        "  detectron2 rebuild: INSTALL_DETECTRON2=1 bash question_7_transfer_learning/setup_tllib_osc.sh\n"
+        "  doctor: python3.9 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor\n"
     )
 
 
@@ -360,10 +359,10 @@ def ensure_tllib_object_detection_importable(import_probe) -> None:
         "`tllib.vision.models.object_detection.meta_arch`.\n"
         "This usually means the TLlib clone still needs the torchvision compatibility "
         "repair or the environment is stale.\n\n"
-        "Suggested next steps:\n"
-        "  1) on OSC, run `git pull` if this checkout may be older than your local repo\n"
-        "  2) rerun `bash question_7_transfer_learning/setup_tllib_osc.sh`\n"
-        "  3) rerun this script with --mode doctor or the shell wrapper\n\n"
+        "Reference commands:\n"
+        "  refresh checkout: git pull\n"
+        "  repair setup: bash question_7_transfer_learning/setup_tllib_osc.sh\n"
+        "  doctor: python3.9 question_7_transfer_learning/demo_tllib_object_detection.py --mode doctor\n\n"
         f"Probe error:\n{probe_details}"
     )
 
@@ -1065,7 +1064,7 @@ def collect_environment_summary(python_bin) -> dict[str, str]:
 
 
 def resolve_model_device(requested_device, python_bin, env_summary) -> str:
-    # 'auto' means "ask the actual runtime" rather than guessing from the host.
+    # 'auto' means "ask the runtime" rather than guessing from the host.
     # If torch is missing or fails to import, fall back to CPU deterministically.
     """Pick the runtime device to use."""
     # Respect an explicit device choice first.
@@ -1078,7 +1077,7 @@ def resolve_model_device(requested_device, python_bin, env_summary) -> str:
             "CUDA was requested explicitly, but the target runtime does not report an available GPU.\n"
             "On OSC, request a GPU node first instead of running the TLlib pipeline from a login or CPU-only node.\n"
             f"Example: {osc_gpu_batch_example()}\n"
-            "Use --device cpu only when you intend to run the pipeline on CPU."
+            "`--device cpu` selects CPU execution."
         )
     torch_version = env_summary.get("torch", "missing")
     # Without torch installed, the safest fallback is CPU.
@@ -1452,7 +1451,7 @@ def main() -> int:
             print(f"  resolved_model_device: {args.resolved_device}", flush=True)
             return 0
 
-        # Dataset preparation is split out so downloads/subsets can be reused across runs.
+        # Dataset preparation is split out so downloads and subsets can be reused across runs.
         if args.mode in ("prepare-datasets", "full-pipeline") and not args.dry_run:
             ensure_full_datasets(full_dataset_paths, allow_download=args.download_datasets)
             if args.profile == "smoke":

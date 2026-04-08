@@ -98,7 +98,7 @@ ALLOC_COMMAND=(
 )
 
 if [[ -n "${CLUSTER}" ]]; then
-  # Forward the optional cluster selection only when the caller set it.
+  # Forward the optional cluster selection only when it was set.
   ALLOC_COMMAND+=("--cluster=${CLUSTER}")
 fi
 
